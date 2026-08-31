@@ -25,12 +25,11 @@ class CallLogReader(private val context: Context) {
             CallLog.Calls.CACHED_NAME,
         )
         context.contentResolver.query(
-            CallLog.Calls.CONTENT_URI,
+            limitedUri(1),
             projection,
             "${CallLog.Calls.TYPE} = ?",
             arrayOf(CallLog.Calls.MISSED_TYPE.toString()),
-            // LIMIT in the sort clause is honoured by the call-log provider.
-            "${CallLog.Calls.DATE} DESC LIMIT 1",
+            "${CallLog.Calls.DATE} DESC",
         )?.use { c ->
             if (!c.moveToFirst()) return null
             val id = c.getLong(0)
@@ -49,16 +48,27 @@ class CallLogReader(private val context: Context) {
         if (!has(Manifest.permission.READ_CALL_LOG)) return emptySet()
         val ids = HashSet<Long>()
         context.contentResolver.query(
-            CallLog.Calls.CONTENT_URI,
+            limitedUri(limit),
             arrayOf(CallLog.Calls._ID),
             "${CallLog.Calls.TYPE} = ?",
             arrayOf(CallLog.Calls.MISSED_TYPE.toString()),
-            "${CallLog.Calls.DATE} DESC LIMIT $limit",
+            "${CallLog.Calls.DATE} DESC",
         )?.use { c ->
             while (c.moveToNext()) ids.add(c.getLong(0))
         }
         return ids
     }
+
+    /**
+     * Appending "LIMIT n" to the sort-order string used to work but newer platform
+     * builds reject it (`IllegalArgumentException: Invalid token LIMIT`) as part of
+     * tightened selection/sort validation. The provider-sanctioned way to cap rows
+     * is the "limit" query parameter on the URI.
+     */
+    private fun limitedUri(limit: Int): Uri =
+        CallLog.Calls.CONTENT_URI.buildUpon()
+            .appendQueryParameter("limit", limit.toString())
+            .build()
 
     private fun lookupContact(number: String): String? {
         if (number.isBlank() || !has(Manifest.permission.READ_CONTACTS)) return null

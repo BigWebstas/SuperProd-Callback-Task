@@ -20,7 +20,7 @@
 
   var TAG = '[MCB]';
   var BRIDGE_PORT = 47623;              // must match the Android app's loopback server
-  var BRIDGE_HOST = '127.0.0.1';        // Task 3 flips this to 'localhost' as a variant
+  var BRIDGE_HOST = 'localhost';        // Task 3 flips this to 'localhost' as a variant
   var POLL_MS = 5000;
   var MARKER_PREFIX = 'sp-cb:';         // Task 4: app packs JSON after this in task notes
 

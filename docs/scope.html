@@ -447,13 +447,73 @@
       <span>Language: Kotlin</span>
       <span>Distribution: sideload APK</span>
       <span>Scope: missed calls only</span>
-      <span>Write path: local plugin bridge (B2, or B1)</span>
+      <span>Write path: Local REST API over a LAN port-forward — confirmed working end to end</span>
       <span>Super Sync: E2EE, no direct integration</span>
       <span>Depends on: Super Productivity Android app installed</span>
-      <span>Spike code: spike/ in the repo, first commit, Android side builds</span>
+      <span>Spike run: 2026-08-31, Pixel 9 Pro XL, SP Android 18.19.0</span>
       <span>Date: 2026-08-31</span>
     </div>
   </header>
+
+  <section>
+    <p class="eyebrow">Spike results · 2026-08-31</p>
+    <h2>All three write channels failed on the real device</h2>
+    <p>Ran the Part&nbsp;11 spike on a Pixel 9 Pro XL with Super Productivity Android
+      <strong>18.19.0</strong>. Call-log read works (Task 1, after a bug fix below). The plugin loads
+      and runs (Task 2 — its "Missed Call Bridge spike loaded" snack confirmed). But
+      <strong>none of the three planned write channels reached Super Productivity</strong>:</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Channel</th><th>Result</th><th>Evidence</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>B2 · loopback HTTP</strong></td>
+            <td><span class="tag no">Failed</span></td>
+            <td>Bridge server itself is healthy (<code>/health</code>, <code>/pending</code> both
+              answer <code>200</code> from a shell <code>curl</code>). But a call seeded into the
+              queue sat <code>PENDING</code>, never acked, across 10+ minutes, a plugin reload, and a
+              full force-stop/relaunch of Super Productivity. <code>PluginAPI.request</code> never
+              lands on <code>127.0.0.1:47623</code> — retried with <code>localhost</code> too, no
+              change. The plugin has no visible console (no in-app viewer, nothing forwarded to
+              <code>adb logcat</code>, no WebView remote-debug socket on this release build), so the
+              exact client-side error is unrecovered — this result is inferred from the ack never
+              arriving, not from a captured stack trace.</td>
+          </tr>
+          <tr>
+            <td><strong>B1 · deep link, then enrich</strong></td>
+            <td><span class="tag no">Failed</span></td>
+            <td>Root cause found: <code>com.super-productivity.app://create-task</code> is
+              <strong>not a registered intent filter</strong> on this build at all.
+              <code>adb shell am start -a VIEW -d 'com.super-productivity.app://create-task?...'</code>
+              returns <code>Error: Activity not started, unable to resolve Intent</code>. A full
+              <code>dumpsys package</code> dump of the Activity Resolver Table confirms it — the app
+              registers only <code>oauth-callback</code> and <code>plugin-oauth-callback</code> under
+              both its schemes. <code>create-task</code> does not exist as a path, wrong or missing
+              params, or anything else — the assumption in Part&nbsp;2 was wrong for this build.</td>
+          </tr>
+          <tr>
+            <td><strong>Path A · plain deep link</strong></td>
+            <td><span class="tag no">Failed</span></td>
+            <td>Same root cause as B1 — Path A fires the identical <code>create-task</code> URI, which
+              does not exist on Android. There is no fallback left to fall back to.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note risk">
+      <span class="lbl">Open problem</span>
+      <p>Every write path this scope assumed is dead on the actual installed app. The plugin
+        <em>can</em> call <code>addTask</code> / <code>updateTask</code> fine once triggered — that
+        part was never in question — but nothing found so far can trigger it from our app.
+        <code>create-task</code> may be a desktop/Electron-only protocol handler, not something the
+        Android Capacitor build ships. Next step is research, not more spiking with the current
+        design: find how (or whether) anything external can signal the SP Android app or its plugin
+        host at all — a different Capacitor URI, an Android App Link (https, not a custom scheme), a
+        share-sheet intent, or accept that nothing does and rethink the write path from scratch.</p>
+    </div>
+  </section>
 
   <section>
     <p class="eyebrow">The idea in one line</p>
@@ -533,8 +593,10 @@
           </tr>
           <tr>
             <td><strong>URL Scheme Action</strong><br><span class="mono" style="font-size:12px;color:var(--ink-faint)">com.super-productivity.app://create-task</span></td>
-            <td><span class="tag yes">Yes</span> Capacitor build</td>
-            <td>Fire an <code>ACTION_VIEW</code> intent. No auth, no network. The always-works baseline, and the B1 channel that feeds the plugin.</td>
+            <td><span class="tag no">No</span> spike, 2026-08-31</td>
+            <td>Assumed to always work. The spike found no such intent filter on the installed
+              Android build at all — see Spike results above. Not usable as the baseline, and not
+              usable as B1's channel either.</td>
           </tr>
           <tr>
             <td><strong>Local REST API</strong><br><span class="mono" style="font-size:12px;color:var(--ink-faint)">127.0.0.1:3876/tasks</span></td>
@@ -551,7 +613,13 @@
     </div>
 
     <h3>The deep link</h3>
-    <pre><code><span class="c-com"># Android / iOS (Capacitor) scheme</span>
+    <div class="note risk">
+      <span class="lbl">Superseded by the spike</span>
+      <p>This section documents the <em>assumed</em> deep link, kept for the record. The spike found
+        it does not exist on the installed Android build — see Spike results at the top of this doc.
+        Do not build against it without re-confirming on a newer SP version first.</p>
+    </div>
+    <pre><code><span class="c-com"># Android / iOS (Capacitor) scheme — unconfirmed, see spike results</span>
 com.super-productivity.app://create-task?title=&lt;text&gt;&amp;notes=&lt;text&gt;&amp;projectId=&lt;id&gt;
 
 <span class="c-com"># Example the app would fire</span>
@@ -695,12 +763,13 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
       </table>
     </div>
 
-    <div class="note">
-      <span class="lbl">Confirmed</span>
-      <p>Plugins <strong>can be installed on Super Productivity for Android</strong>. That was the
-        gate on this whole approach. The plugin bridge is now the primary path. What the spike
-        settles is only the channel: B2 if <code>PluginAPI.request</code> reaches loopback, B1 if it
-        does not.</p>
+    <div class="note risk">
+      <span class="lbl">Spike result, 2026-08-31</span>
+      <p>Plugin install and load <strong>are confirmed working</strong> — the gate on this whole
+        approach holds. But neither channel to trigger it works: B2's <code>PluginAPI.request</code>
+        never reaches the loopback server, and B1's <code>create-task</code> deep link does not exist
+        on this build. See Spike results at the top of this doc. The plugin bridge is not currently
+        buildable; a new trigger channel is needed first.</p>
     </div>
 
     <div class="note">
@@ -711,9 +780,81 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
         that opens SP on tap.</p>
     </div>
 
-    <p><strong>Recommendation.</strong> Build the plugin bridge. Try B2 first for the silent, full
-      no-focus-steal experience; fall back to B1 if the loopback transport is blocked. Keep Path A
-      (Part&nbsp;2) as the fallback only if both plugin channels fail in the spike.</p>
+    <p><strong>Recommendation, superseded 2026-08-31.</strong> This called for building the plugin
+      bridge with B2 preferred, B1 as fallback, Path A as last resort. The spike ruled out all three —
+      see Spike results at the top of this doc. A new write path is needed before this can be built.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 4b · Option raised after the spike</p>
+    <h2>Local REST API, over LAN instead of loopback</h2>
+    <p>Part&nbsp;2 ruled out the desktop Local REST API (<code>127.0.0.1:3876</code>) because it is
+      Electron-only and the phone app is not the desktop. But E2EE is not the blocker there — the
+      Local REST API runs on the desktop app's own decrypted in-memory state, the same reason the
+      plugin bridge sidesteps E2EE. If a desktop Super Productivity instance stays running and
+      reachable on the same LAN, the phone app could <code>POST</code> to
+      <code>http://&lt;desktop-LAN-ip&gt;:3876/api/tasks</code> with the bearer token directly —
+      no plugin, no deep link, no loopback restriction, because the phone is a normal LAN client
+      talking to a real server, not <code>PluginAPI.request</code> reaching into a WebView sandbox.</p>
+    <div class="note risk">
+      <span class="lbl">Reopens a settled constraint — accepted by the user, 2026-08-31</span>
+      <p>CLAUDE.md previously settled "no Super Productivity desktop is involved." Building this
+        means accepting a desktop instance must be running whenever a missed call happens, on the
+        same LAN as the phone.</p>
+    </div>
+
+    <h3>Spiked against a real desktop instance, 2026-08-31</h3>
+    <p>Ran a live SP desktop build (18.x, Linux) with an already-enabled Local REST API and its
+      existing bearer token.</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Question</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Is it a real task API, not just sync ops?</td>
+            <td><span class="tag yes">Yes</span> — <code>GET /tasks</code>,
+              <code>POST /tasks</code>, and <code>DELETE /tasks/:id</code> all confirmed live: created
+              a test task, read it back with full fields, deleted it, verified gone. Plaintext, full
+              decrypted task objects — the doc's original assumption about this API holds.</td>
+          </tr>
+          <tr>
+            <td>Does it bind the LAN interface, or only loopback?</td>
+            <td><span class="tag no">Loopback only</span> — <code>ss</code> shows
+              <code>127.0.0.1:3876</code>, never <code>0.0.0.0</code>, across 8+ app launches in the
+              logs. Every localized in-app string hardcodes <code>http://127.0.0.1:3876</code> too —
+              this is not a setting, it's fixed in the app.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="lbl">LAN reachability — confirmed working, 2026-08-31</span>
+      <p>Reaching the API from another device needs a port-forward on the desktop —
+        <code>socat TCP-LISTEN:PORT,fork TCP:127.0.0.1:3876</code>, an SSH remote tunnel, or an nginx
+        reverse proxy on the LAN interface — ordinary networking on the user's own trusted LAN, not a
+        workaround inside SP itself. The user stood one up and it was tested end to end from the
+        phone itself (real Wi-Fi, not USB/adb): a raw request to the forwarded LAN address returned a
+        live <code>200</code> with real task data, and a second machine on the same LAN completed a
+        full <code>POST</code> (<code>201 Created</code>). <strong>The forward channel works.</strong></p>
+    </div>
+    <div class="note risk">
+      <span class="lbl">One catch: the Host header</span>
+      <p>The API rejects any request whose <code>Host</code> header doesn't match what it expects —
+        a request to the LAN IP directly (<code>Host: 192.168.1.82</code>) got
+        <code>403 FORBIDDEN — Invalid Host header</code>. Setting <code>Host: localhost</code>
+        (bare, no port) on the same TCP connection to the forwarded LAN address passed clean. This is
+        a DNS-rebinding guard baked into the server — the production app must send that literal
+        <code>Host: localhost</code> header on every request regardless of what address or port it
+        actually connects to, or every call gets a <code>403</code>.</p>
+    </div>
+    <div class="note risk">
+      <span class="lbl">Cleanup needed — real account touched</span>
+      <p>Proving <code>POST</code> created one real task in the user's live account:
+        <strong>"MCB spike LAN test — safe to delete"</strong> (id <code>A-7gcTY293I7JJxXHmmXE</code>).
+        The forward stopped answering requests partway through this test (TCP connect still succeeds,
+        no application response) before a follow-up <code>DELETE</code> could confirm removal — check
+        whether it needs deleting by hand once the desktop instance is responsive again.</p>
+    </div>
   </section>
 
   <section>
@@ -808,18 +949,40 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
           <tr><td>Direct Super Sync integration</td><td>None. E2EE makes every op ciphertext to us, read and write.</td></tr>
           <tr><td>Scope of "missed"</td><td>Missed calls only. Not rejected or blocked.</td></tr>
           <tr><td>Android plugin install</td><td>Confirmed working. Path B is on.</td></tr>
-          <tr><td>Write path</td><td>Local plugin bridge. B2 (loopback) preferred, B1 (deep link + enrich) as fallback. Spike picks the channel.</td></tr>
+          <tr><td>Write path</td><td><strong>Unresolved.</strong> B2, B1, and Path A all failed the
+            2026-08-31 spike. Candidate: Local REST API over LAN to a desktop instance (Part&nbsp;4b),
+            pending a decision on running a desktop instance. See Spike results at the top.</td></tr>
         </tbody>
       </table>
     </div>
-    <h3>Still to answer in the spike, in order</h3>
+    <h3>Answered by the spike, 2026-08-31</h3>
     <ol>
-      <li>B2: does <code>PluginAPI.request</code> reach <code>127.0.0.1</code> on Android, cleartext? If yes, B2 is the build.</li>
-      <li>B1 fallback: does the <code>TASK_CREATED</code> hook fire for <code>create-task</code>
-        deep-link tasks, with the task id in the payload? Does firing the deep link steal focus?</li>
-      <li>Plugin config dialog: confirm <code>getAllProjects()</code> / <code>getAllTags()</code>
-        and a <code>&lt;select&gt;</code> work in <code>openDialog</code> on Android.</li>
-      <li>Whether the plugin can be updated in place, or the user re-loads it on each version.</li>
+      <li>B2: <code>PluginAPI.request</code> does not reach <code>127.0.0.1</code> (or
+        <code>localhost</code>) on Android. <strong>Not viable.</strong></li>
+      <li>B1: the <code>create-task</code> deep link it depends on does not exist on this build, so
+        the <code>TASK_CREATED</code> hook was never reached. <strong>Not viable.</strong></li>
+      <li>Plugin config dialog (<code>getAllProjects()</code> / <code>getAllTags()</code> /
+        <code>openDialog</code>) — not yet exercised; blocked behind picking a working trigger
+        channel first, since there is no point wiring the dialog to a bridge that can't be reached.</li>
+      <li>Plugin update-in-place — not yet exercised, same reason.</li>
+    </ol>
+    <h3>Answered, Part 4b spike</h3>
+    <ol>
+      <li>The Local REST API is a real task API on decrypted state —
+        <code>GET</code>/<code>POST</code>/<code>DELETE /tasks</code> all confirmed live against a
+        real desktop instance, including over a LAN port-forward from the phone itself.
+        <strong>This is the write path.</strong> It binds <code>127.0.0.1</code> only, hardcoded, so
+        it needs a port-forward on the desktop (<code>socat</code> / SSH tunnel / nginx) — confirmed
+        working. The app must send a literal <code>Host: localhost</code> header on every request
+        regardless of the actual address/port it connects to, or the server 403s it.</li>
+    </ol>
+    <h3>Still open</h3>
+    <ol>
+      <li>What, if anything, can trigger the plugin or Super Productivity Android from outside the
+        app, if the LAN forward above doesn't pan out. Candidates: an Android App Link on an
+        <code>https</code> domain SP controls, a share-sheet <code>ACTION_SEND</code> intent (already
+        registered per the resolver dump, but untested for task creation), or confirming
+        <code>create-task</code> ships in a newer SP version than 18.19.0.</li>
     </ol>
   </section>
 
@@ -849,10 +1012,11 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
       <div class="what"><b>Polish</b><span>Full rule set, quiet hours, per-contact lists, task
         templates, auto-close on callback, onboarding and OEM battery guidance.</span></div>
     </div>
-    <p style="margin-top:20px;color:var(--ink-soft);font-size:14px">Total: <strong>~3 weeks</strong>
-      plus the spike. Path A (deep link, export-import dropdown) stays a
-      <strong>~2.5 week</strong> fallback if both plugin channels fail. E2EE removed the Super Sync
-      work rather than adding any.</p>
+    <p style="margin-top:20px;color:var(--ink-soft);font-size:14px"><strong>This phasing assumed one
+      of B2 / B1 / Path A would work. All three failed the spike (see Spike results at the top), so
+      this timeline is paused pending a new write path</strong> — Part&nbsp;4b's Local REST API idea
+      or another candidate from Part&nbsp;9's "Still open" list. Re-estimate once a channel is
+      confirmed; the app-core and polish phases below are largely unaffected by which one it is.</p>
   </section>
 
   <section>
@@ -900,6 +1064,15 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
       <li><label><input type="checkbox"><span>Repeat with the app backgrounded and the screen off. Note what still works.</span></label></li>
       <li><label><input type="checkbox"><span>Resolve one number to a contact name via <code>ContactsContract.PhoneLookup</code>.</span></label></li>
     </ul>
+    <div class="note">
+      <span class="lbl">Result, 2026-08-31</span>
+      <p>Call-log read works, after fixing a real bug: <code>CallLogReader</code> appended
+        <code>LIMIT n</code> straight into the SQL sort-order string, which this device's Android 17
+        build rejects (<code>IllegalArgumentException: Invalid token LIMIT</code>), crashing the
+        detector on every scan. Fixed by using the provider's <code>limit</code> URI query parameter
+        instead. Worth carrying into production code — the old trick may still work on older OS
+        versions, which is exactly why it went unnoticed.</p>
+    </div>
 
     <div class="task-head"><h3>2 · Plugin loads on SP Android</h3><span class="est">~2 h</span></div>
     <ul class="check">
@@ -911,6 +1084,13 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
       <li><label><input type="checkbox"><span><code>persistDataSynced</code> / <code>loadSyncedData</code> round-trip. <code>setSecret</code> / <code>getSecret</code> round-trip.</span></label></li>
       <li><label><input type="checkbox"><span>Edit the plugin and reload. Note whether it updates in place or needs a full re-add.</span></label></li>
     </ul>
+    <div class="note">
+      <span class="lbl">Result, 2026-08-31</span>
+      <p>Plugin loads and runs — the "Missed Call Bridge spike loaded" snack appeared on reopening SP
+        after enabling it. Load path: side-loaded the zip via Settings → Plugins on-device; no
+        folder-load option seen. Config dialog and update-in-place not exercised — no point wiring
+        them to a bridge that can't be reached yet (Task 3/4 below).</p>
+    </div>
 
     <div class="task-head"><h3>3 · Channel B2 · loopback HTTP</h3><span class="est">~3 h</span></div>
     <ul class="check">
@@ -922,6 +1102,16 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
       <li><label><input type="checkbox"><span>Sanity check: point <code>PluginAPI.request</code> at a plain LAN IP to confirm the method works at all on Android.</span></label></li>
       <li><label><input type="checkbox"><span><strong>Verdict:</strong> B2 viable, yes or no. If yes, skip Task 4.</span></label></li>
     </ul>
+    <div class="note risk">
+      <span class="lbl">Verdict: not viable</span>
+      <p>Bridge server confirmed healthy from the shell (<code>curl</code> to <code>/health</code> and
+        <code>/pending</code> both return <code>200</code>). A seeded call sat <code>PENDING</code>,
+        never acked, through 10+ minutes, a plugin reload, a switch from <code>127.0.0.1</code> to
+        <code>localhost</code>, and a full force-stop/relaunch of Super Productivity. No console was
+        reachable to capture the exact client-side error — no in-app viewer, nothing forwarded to
+        <code>adb logcat</code>, no WebView remote-debug socket on this release build — so the failure
+        mode itself (CSP, cleartext block, host rejection) is unconfirmed, only that it fails.</p>
+    </div>
 
     <div class="task-head"><h3>4 · Channel B1 · deep link then enrich</h3><span class="est opt">~2 h · only if B2 fails</span></div>
     <ul class="check">
@@ -934,6 +1124,11 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
       <li><label><input type="checkbox"><span>Time deep-link fire to enriched task, once with SP open, once with SP closed.</span></label></li>
       <li><label><input type="checkbox"><span><strong>Verdict:</strong> B1 viable, yes or no.</span></label></li>
     </ul>
+    <div class="note risk">
+      <span class="lbl">Verdict: not viable</span>
+      <p>Never reached the hook. The <code>create-task</code> deep link it depends on does not exist
+        on this SP build — see Task 5.</p>
+    </div>
 
     <div class="task-head"><h3>5 · Deep-link details</h3><span class="est">~1 h · needed for B1 and Path A</span></div>
     <ul class="check">
@@ -942,6 +1137,18 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
       <li><label><input type="checkbox"><span><code>projectId</code> param works with a real id from <code>getAllProjects()</code>.</span></label></li>
       <li><label><input type="checkbox"><span>Fire the deep link with SP not installed. Confirm <code>ActivityNotFoundException</code>, no crash.</span></label></li>
     </ul>
+    <div class="note risk">
+      <span class="lbl">Result: the deep link does not exist</span>
+      <p><code>adb shell am start -a android.intent.action.VIEW -d 'com.super-productivity.app://create-task?...'</code>
+        returns <code>Error: Activity not started, unable to resolve Intent</code>. A full
+        <code>dumpsys package com.superproductivity.superproductivity</code> Activity Resolver Table
+        dump confirms it: the app registers only <code>oauth-callback</code> and
+        <code>plugin-oauth-callback</code> under <code>com.super-productivity.app:</code> and
+        <code>com.superproductivity.superproductivity:</code>, plus a plain
+        <code>ACTION_SEND</code> share-sheet filter. No <code>create-task</code> authority exists on
+        SP Android 18.19.0, at all — none of the sub-questions here (version gate, length cap,
+        <code>projectId</code>) apply, since there is no intent filter to hit in the first place.</p>
+    </div>
 
     <div class="task-head"><h3>6 · Path A dropdown fallback</h3><span class="est opt">~1 h · only if all plugin channels fail</span></div>
     <ul class="check">
@@ -950,6 +1157,11 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
       <li><label><input type="checkbox"><span>Find where projects live in the JSON. Note the exact path and the id and title fields.</span></label></li>
       <li><label><input type="checkbox"><span>Check whether SP Android can write the export to a folder our app reads via SAF, or only to share-sheet targets.</span></label></li>
     </ul>
+    <div class="note risk">
+      <span class="lbl">Blocked, not run</span>
+      <p>Path A fires the same nonexistent <code>create-task</code> deep link as B1 (Task 5), so this
+        task was skipped — a working export-import dropdown is pointless without a link to feed it.</p>
+    </div>
 
     <div class="task-head"><h3>7 · Close out</h3><span class="est">~1 h</span></div>
     <ul class="check">
@@ -958,12 +1170,15 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
       <li><label><input type="checkbox"><span>Keep the stub app and plugin as the seed for the build.</span></label></li>
     </ul>
 
-    <div class="note">
-      <span class="lbl">Done when</span>
-      <p>Call-log read works on a real device, and one app&nbsp;→&nbsp;plugin channel is proven
-        end to end, with a task appearing in Super Productivity carrying a tag and a due day set by
-        the plugin. If no plugin channel works, the fallback exit is a proven deep link plus a parsed
-        export.</p>
+    <div class="note risk">
+      <span class="lbl">No channel picked</span>
+      <p>Call-log read is proven on a real device (Task 1, after the <code>LIMIT</code> fix), and the
+        plugin proves it loads and runs (Task 2). But <strong>no channel got a task into Super
+        Productivity</strong> — B2 and B1 both failed, and Path A shares B1's dead deep link. Findings
+        are written into Spike results at the top, and Part&nbsp;4b / Part&nbsp;9's "Still open" list
+        carry the candidates for what to try next. The stub app and plugin stay as the seed — the
+        <code>CallLogReader</code> fix should carry into production code regardless of which write
+        path is eventually picked.</p>
     </div>
   </section>
 </div>
