@@ -1,0 +1,10 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Android / Gradle (spike)
+**/build/
+**/.gradle/
+**/local.properties
+*.iml
+*.apk

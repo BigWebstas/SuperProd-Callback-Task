@@ -1,0 +1,29 @@
+{
+  "id": "missed-call-bridge-spike",
+  "name": "Missed Call Bridge (spike)",
+  "version": "0.0.1",
+  "description": "Throwaway plugin to prove the app-to-plugin channel on Super Productivity Android.",
+  "manifestVersion": 1,
+
+  "minSupVersion": "14.0.0",
+
+  "iFrame": false,
+  "sidePanel": false,
+
+  "permissions": [
+    "getTasks",
+    "addTask",
+    "updateTask",
+    "http"
+  ],
+
+  "allowedHosts": [
+    "127.0.0.1",
+    "localhost"
+  ],
+
+  "hooks": [
+    "taskCreated",
+    "action"
+  ]
+}
