@@ -2,6 +2,7 @@ package dev.mcb.callback.ui
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -15,6 +16,7 @@ import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.RadioButton
@@ -24,6 +26,7 @@ import android.widget.TextView
 import dev.mcb.callback.data.CallFilter
 import dev.mcb.callback.data.QueueRepository
 import dev.mcb.callback.data.Settings
+import dev.mcb.callback.net.Project
 import dev.mcb.callback.net.SuperProductivityApi
 import dev.mcb.callback.service.CallMonitorService
 import java.text.SimpleDateFormat
@@ -46,7 +49,9 @@ class MainActivity : Activity() {
     private lateinit var portField: EditText
     private lateinit var tokenField: EditText
     private lateinit var projectField: EditText
+    private lateinit var projectLabel: TextView
     private lateinit var filterGroup: RadioGroup
+    private lateinit var declinedCheck: CheckBox
     private lateinit var logView: TextView
     private lateinit var logScroll: ScrollView
 
@@ -71,7 +76,14 @@ class MainActivity : Activity() {
         hostField = labeled(root, "Host or LAN IP", settings.apiHost)
         portField = labeled(root, "Port", settings.apiPort.toString())
         tokenField = labeled(root, "Bearer token", settings.apiToken)
-        projectField = labeled(root, "Project ID (optional)", settings.projectId.orEmpty())
+        projectField = labeled(root, "Project ID (optional, blank = Inbox)", settings.projectId.orEmpty())
+        projectLabel = TextView(this).apply {
+            text = projectStatusText()
+            textSize = 12f
+            setPadding(0, 4, 0, 8)
+        }
+        root.addView(projectLabel)
+        root.addView(button("Pick project…") { pickProject() })
         root.addView(button("Save + test connection") { saveAndTest() })
 
         root.addView(sectionLabel("Which missed calls to capture"))
@@ -93,12 +105,25 @@ class MainActivity : Activity() {
             }
         }
         root.addView(filterGroup)
+        declinedCheck = CheckBox(this).apply {
+            text = "Also capture declined calls (title prefixed \"Declined, Call back\")"
+            isChecked = settings.captureDeclined
+        }
+        root.addView(declinedCheck)
         root.addView(button("Save rule") {
             val checked = (0 until filterGroup.childCount)
                 .map { filterGroup.getChildAt(it) as RadioButton }
                 .firstOrNull { it.isChecked }
             settings.callFilter = (checked?.tag as? CallFilter) ?: CallFilter.ALL
-            append("rule saved: ${settings.callFilter}")
+
+            val wasDeclined = settings.captureDeclined
+            settings.captureDeclined = declinedCheck.isChecked
+            append("rule saved: ${settings.callFilter}, declined=${settings.captureDeclined}")
+            if (settings.captureDeclined && !wasDeclined) {
+                // otherwise every already-declined call in history looks "new" to the
+                // detector's next scan and floods in at once.
+                withRepo { it.baselineDeclinedHistory() }
+            }
         })
 
         root.addView(sectionLabel("Monitor"))
@@ -158,7 +183,13 @@ class MainActivity : Activity() {
         settings.apiHost = hostField.text.toString().trim()
         settings.apiPort = portField.text.toString().trim().toIntOrNull() ?: 3876
         settings.apiToken = tokenField.text.toString().trim()
-        settings.projectId = projectField.text.toString().trim()
+        val typedProjectId = projectField.text.toString().trim()
+        if (typedProjectId != settings.projectId.orEmpty()) {
+            // typed by hand rather than picked — the cached title no longer applies
+            settings.projectTitle = null
+        }
+        settings.projectId = typedProjectId
+        projectLabel.text = projectStatusText()
         append("saved: ${settings.apiHost}:${settings.apiPort}")
 
         val config = settings.apiConfig()
@@ -174,6 +205,53 @@ class MainActivity : Activity() {
                 append("test connection FAILED: ${e.message}")
             }
         }
+    }
+
+    private fun projectStatusText(): String {
+        val id = settings.projectId
+        return when {
+            id == null -> "No project set — new tasks go to Inbox"
+            settings.projectTitle != null -> "Picked: ${settings.projectTitle} ($id)"
+            else -> "Project id: $id (typed by hand, not picked)"
+        }
+    }
+
+    /** GET /projects, then an AlertDialog to pick one — confirmed live, docs/scope.html
+     *  Part 4b addendum. Saves both the id (what the API needs) and the title (what's
+     *  worth showing back to a human) so [projectStatusText] doesn't need another call. */
+    private fun pickProject() {
+        val config = settings.apiConfig()
+        if (!config.isConfigured) {
+            append("pick project: save host + token first")
+            return
+        }
+        append("fetching /projects…")
+        thread {
+            runCatching { SuperProductivityApi(config).listProjects() }
+                .onSuccess { projects -> runOnUiThread { showProjectDialog(projects) } }
+                .onFailure { e -> append("fetch projects FAILED: ${e.message}") }
+        }
+    }
+
+    private fun showProjectDialog(projects: List<Project>) {
+        val labels = (listOf("Inbox (no project)") + projects.map { it.title }).toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Pick a project")
+            .setItems(labels) { _, index ->
+                if (index == 0) {
+                    settings.projectId = null
+                    settings.projectTitle = null
+                    projectField.setText("")
+                } else {
+                    val picked = projects[index - 1]
+                    settings.projectId = picked.id
+                    settings.projectTitle = picked.title
+                    projectField.setText(picked.id)
+                }
+                projectLabel.text = projectStatusText()
+                append("project -> ${settings.projectTitle ?: "Inbox"}")
+            }
+            .show()
     }
 
     private fun showRecent() = withRepo { repo ->

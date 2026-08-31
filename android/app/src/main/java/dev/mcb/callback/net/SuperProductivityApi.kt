@@ -9,6 +9,9 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+/** id + title from `GET /projects` — everything else that route returns is dropped. */
+data class Project(val id: String, val title: String)
+
 /**
  * Client for Super Productivity's Local REST API, reached over the user's own
  * LAN port-forward (docs/scope.html Part 4b — confirmed working end to end,
@@ -52,6 +55,25 @@ class SuperProductivityApi(private val config: ApiConfig) {
             val id = runCatching { JSONObject(text).getJSONObject("data").getString("id") }
                 .getOrNull()
             return id ?: throw ApiException("no task id in response: ${text.take(200)}")
+        }
+    }
+
+    /** Live project list for the picker — confirmed working, docs/scope.html Part 4b addendum. */
+    fun listProjects(): List<Project> {
+        val request = Request.Builder()
+            .url("${config.baseUrl}/projects")
+            .header("Host", "localhost")
+            .header("Authorization", "Bearer ${config.token}")
+            .get()
+            .build()
+        client.newCall(request).execute().use { resp ->
+            val text = resp.body?.string().orEmpty()
+            if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}: ${text.take(200)}")
+            val data = JSONObject(text).getJSONArray("data")
+            return (0 until data.length()).map { i ->
+                val p = data.getJSONObject(i)
+                Project(p.getString("id"), p.getString("title"))
+            }
         }
     }
 

@@ -21,7 +21,7 @@ import dev.mcb.callback.rules.RuleEngine
  *
  *  - trigger: TelephonyCallback / PhoneStateListener. RINGING then IDLE with no
  *    OFFHOOK looks like a missed call.
- *  - source of truth: [CallLogReader.newestMissed], queried ~1.5 s after IDLE.
+ *  - source of truth: [CallLogReader.newestCapturable], queried ~1.5 s after IDLE.
  *  - backup trigger: a ContentObserver on the call-log URI.
  *
  * Dedup, filtering and delivery go through [QueueRepository] + [RuleEngine].
@@ -50,7 +50,7 @@ class CallDetector(
 
     fun start() {
         bg.post {
-            repo.baselineProcessed(reader.recentMissedIds())
+            repo.baselineProcessed(reader.recentCapturableIds(settings.captureDeclined))
             registerObserver()
         }
         registerTelephony()
@@ -130,7 +130,7 @@ class CallDetector(
     // --- shared path (always on the bg thread) ------------------------------
 
     private fun scan(source: String) {
-        val call = reader.newestMissed()
+        val call = reader.newestCapturable(settings.captureDeclined)
         if (call == null) {
             onLog("scan[$source]: no missed call in log")
             return

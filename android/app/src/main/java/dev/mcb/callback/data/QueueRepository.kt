@@ -2,6 +2,7 @@ package dev.mcb.callback.data
 
 import android.content.Context
 import android.util.Log
+import dev.mcb.callback.CallLogReader
 import dev.mcb.callback.MissedCall
 import dev.mcb.callback.net.SuperProductivityApi
 
@@ -35,6 +36,12 @@ class QueueRepository(
         val now = System.currentTimeMillis()
         dao.markProcessedAll(callLogIds.map { ProcessedCall(it, now) })
         onLog("baselined ${callLogIds.size} call-log ids (total processed=${dao.processedCount()})")
+    }
+
+    /** Call right after flipping [Settings.captureDeclined] on, so the newly-in-scope
+     *  REJECTED_TYPE history doesn't all look "new" on the running detector's next scan. */
+    fun baselineDeclinedHistory() {
+        baselineProcessed(CallLogReader(context).recentCapturableIds(includeDeclined = true))
     }
 
     /** true if this id is new and was just claimed; false if already handled. */

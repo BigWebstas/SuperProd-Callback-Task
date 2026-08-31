@@ -42,9 +42,19 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_PROJECT, null)?.takeIf { it.isNotBlank() }
         set(value) = prefs.edit().putString(KEY_PROJECT, value).apply()
 
+    /** Display name for [projectId], picked live from `/projects` — see [ui.MainActivity]. */
+    var projectTitle: String?
+        get() = prefs.getString(KEY_PROJECT_TITLE, null)?.takeIf { it.isNotBlank() }
+        set(value) = prefs.edit().putString(KEY_PROJECT_TITLE, value).apply()
+
     var callFilter: CallFilter
         get() = CallFilter.valueOf(prefs.getString(KEY_FILTER, CallFilter.ALL.name)!!)
         set(value) = prefs.edit().putString(KEY_FILTER, value.name).apply()
+
+    /** Missed calls are always captured; declined (REJECTED_TYPE) is opt-in. */
+    var captureDeclined: Boolean
+        get() = prefs.getBoolean(KEY_DECLINED, false)
+        set(value) = prefs.edit().putBoolean(KEY_DECLINED, value).apply()
 
     /** So BootReceiver knows whether to restart the service after a reboot. */
     var serviceEnabled: Boolean
@@ -58,7 +68,9 @@ class Settings(context: Context) {
         private const val KEY_PORT = "api_port"
         private const val KEY_TOKEN = "api_token"
         private const val KEY_PROJECT = "project_id"
+        private const val KEY_PROJECT_TITLE = "project_title"
         private const val KEY_FILTER = "call_filter"
+        private const val KEY_DECLINED = "capture_declined"
         private const val KEY_ENABLED = "service_enabled"
     }
 }
