@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.text.method.ScrollingMovementMethod
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.Button
@@ -82,6 +83,9 @@ class MainActivity : Activity() {
                 CallFilter.UNKNOWN_ONLY to "Unknown numbers only",
             ).forEach { (filter, label) ->
                 addView(RadioButton(this@MainActivity).apply {
+                    // RadioGroup only enforces mutual exclusion between children that have
+                    // a real view id — without one, more than one button can show checked.
+                    id = View.generateViewId()
                     text = label
                     tag = filter
                     isChecked = settings.callFilter == filter
@@ -115,6 +119,7 @@ class MainActivity : Activity() {
             withRepo { append("re-queued ${it.retryFailed()} failed task(s)") }
         })
         root.addView(button("Seed a test call") { withRepo { it.seedFakeCall() } })
+        root.addView(button("Clear log") { logView.text = "" })
 
         logView = TextView(this).apply {
             typeface = android.graphics.Typeface.MONOSPACE
