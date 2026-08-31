@@ -1,0 +1,1002 @@
+<title>Missed Calls to Super Productivity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #F3F4F6;
+    --surface: #FFFFFF;
+    --surface-sunk: #ECEEF1;
+    --ink: #1A1F24;
+    --ink-soft: #4A535C;
+    --ink-faint: #7C8791;
+    --rule: #D6DAE0;
+    --rule-soft: #E4E7EB;
+    --amber: #A65E24;
+    --amber-bg: #F6ECE1;
+    --slate: #3C5A78;
+    --slate-bg: #E5EBF1;
+    --danger: #9E3428;
+    --danger-bg: #F5E4E1;
+    --ok: #3B6B4A;
+    --shadow: 0 1px 2px rgba(20,26,32,.06), 0 8px 24px rgba(20,26,32,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101418;
+      --surface: #171C21;
+      --surface-sunk: #1F262C;
+      --ink: #E8EAED;
+      --ink-soft: #AEB6BE;
+      --ink-faint: #7A838C;
+      --rule: #2C343B;
+      --rule-soft: #232a30;
+      --amber: #D68E56;
+      --amber-bg: #2A2019;
+      --slate: #8FB3D4;
+      --slate-bg: #1A222B;
+      --danger: #E08579;
+      --danger-bg: #2A1B18;
+      --ok: #7FB98E;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #101418;
+    --surface: #171C21;
+    --surface-sunk: #1F262C;
+    --ink: #E8EAED;
+    --ink-soft: #AEB6BE;
+    --ink-faint: #7A838C;
+    --rule: #2C343B;
+    --rule-soft: #232a30;
+    --amber: #D68E56;
+    --amber-bg: #2A2019;
+    --slate: #8FB3D4;
+    --slate-bg: #1A222B;
+    --danger: #E08579;
+    --danger-bg: #2A1B18;
+    --ok: #7FB98E;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.62;
+    font-size: 16px;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 72px 28px 120px;
+  }
+  .mono {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-size: 33px;
+    line-height: 1.18;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0 0 18px;
+  }
+  h2 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0 0 14px;
+  }
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 26px 0 8px;
+  }
+  p { margin: 0 0 16px; max-width: 66ch; }
+  a { color: var(--slate); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 600; }
+
+  .lede {
+    font-size: 18px;
+    color: var(--ink-soft);
+    max-width: 62ch;
+  }
+
+  header {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 34px;
+    margin-bottom: 14px;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin-top: 22px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .meta span::before { content: "→ "; color: var(--amber); }
+
+  section {
+    padding: 44px 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  section:last-of-type { border-bottom: 0; }
+
+  ul, ol { margin: 0 0 16px; padding-left: 22px; }
+  li { margin: 0 0 7px; max-width: 64ch; }
+  li::marker { color: var(--ink-faint); }
+
+  /* flow diagram */
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: stretch;
+    margin: 8px 0 4px;
+  }
+  .flow-step {
+    flex: 1 1 120px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 7px;
+    padding: 12px 13px;
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  .flow-step .n {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--amber);
+    font-weight: 600;
+  }
+  .flow-step .t {
+    font-weight: 600;
+    font-size: 14px;
+    margin-top: 3px;
+    display: block;
+  }
+  .flow-step .d {
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-family: "IBM Plex Mono", monospace;
+    margin-top: 5px;
+    display: block;
+    line-height: 1.45;
+  }
+  .flow-arrow {
+    align-self: center;
+    color: var(--ink-faint);
+    font-size: 14px;
+  }
+  @media (max-width: 620px) {
+    .flow { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); }
+  }
+
+  /* table */
+  .tbl-scroll { overflow-x: auto; margin: 4px 0 8px; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+    min-width: 540px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    border-bottom: 1px solid var(--rule);
+  }
+  tbody tr:hover { background: var(--surface-sunk); }
+  .pick td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+  .tag {
+    display: inline-block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--slate-bg);
+    color: var(--slate);
+    white-space: nowrap;
+  }
+  .tag.no { background: var(--danger-bg); color: var(--danger); }
+  .tag.yes { background: var(--slate-bg); color: var(--ok); }
+
+  /* callouts */
+  .note {
+    border-left: 3px solid var(--slate);
+    background: var(--slate-bg);
+    padding: 14px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 18px 0;
+    font-size: 14.5px;
+  }
+  .note.risk { border-left-color: var(--danger); background: var(--danger-bg); }
+  .note.risk strong { color: var(--danger); }
+  .note p { margin: 0; max-width: none; }
+  .note .lbl {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+    color: var(--ink-faint);
+  }
+
+  pre {
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule-soft);
+    border-radius: 7px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 0 0 16px;
+  }
+  pre .mono, code { font-family: "IBM Plex Mono", monospace; }
+  code {
+    background: var(--surface-sunk);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+  pre code { background: none; padding: 0; }
+  .c-key { color: var(--amber); }
+  .c-str { color: var(--slate); }
+  .c-com { color: var(--ink-faint); }
+
+  /* component grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 8px 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 15px 16px;
+    box-shadow: var(--shadow);
+  }
+  .card h4 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+  }
+  .card p { font-size: 13px; color: var(--ink-soft); margin: 0; max-width: none; }
+
+  .phase {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--rule-soft);
+  }
+  .phase:last-child { border-bottom: 0; }
+  .phase .when {
+    flex: 0 0 84px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--amber);
+  }
+  .phase .what { font-size: 14px; }
+  .phase .what b { display: block; margin-bottom: 2px; }
+  .phase .what span { color: var(--ink-soft); font-size: 13px; }
+
+  .q {
+    counter-increment: q;
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .q::before {
+    content: "Q" counter(q);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--amber);
+    flex: 0 0 auto;
+    padding-top: 2px;
+  }
+  .qlist { counter-reset: q; }
+  .q p { margin: 0; }
+  .q p span { color: var(--ink-soft); font-size: 14px; }
+
+  /* spike checklist */
+  .task-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 26px 0 10px;
+  }
+  .task-head h3 { margin: 0; }
+  .task-head .est {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .04em;
+    color: var(--slate);
+    background: var(--slate-bg);
+    padding: 1px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .task-head .est.opt { color: var(--ink-faint); background: var(--surface-sunk); }
+  ul.check {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  ul.check li { margin: 0; max-width: none; }
+  ul.check label {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 7px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  ul.check label:hover { background: var(--surface-sunk); }
+  ul.check input {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    border: 1.5px solid var(--rule);
+    border-radius: 4px;
+    background: var(--surface);
+    display: grid;
+    place-content: center;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  ul.check input::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    transform: scale(0);
+    transition: transform .12s;
+    box-shadow: inset 1em 1em var(--surface);
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  }
+  ul.check input:checked {
+    background: var(--amber);
+    border-color: var(--amber);
+  }
+  ul.check input:checked::before { transform: scale(1); }
+  ul.check input:focus-visible { outline: 2px solid var(--slate); outline-offset: 2px; }
+  ul.check input:checked ~ span { color: var(--ink-faint); text-decoration: line-through; }
+  ul.check code { font-size: 0.85em; }
+  .progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin: 4px 0 8px;
+  }
+  .progress .bar {
+    flex: 1;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--surface-sunk);
+    overflow: hidden;
+  }
+  .progress .bar i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--amber);
+    transition: width .2s;
+  }
+  .reset-btn {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 3px 8px;
+    cursor: pointer;
+  }
+  .reset-btn:hover { color: var(--ink); border-color: var(--ink-faint); }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Project Scope · Draft</p>
+    <h1>Missed calls, captured as Super Productivity tasks</h1>
+    <p class="lede">A small Android app that watches for missed calls and turns each one into a
+      "call back" task in Super Productivity, filtered by rules you set.</p>
+    <div class="meta">
+      <span>Platform: Android 8.0+ (API 26)</span>
+      <span>Language: Kotlin</span>
+      <span>Distribution: sideload APK</span>
+      <span>Scope: missed calls only</span>
+      <span>Write path: local plugin bridge (B2, or B1)</span>
+      <span>Super Sync: E2EE, no direct integration</span>
+      <span>Depends on: Super Productivity Android app installed</span>
+      <span>Spike code: spike/ in the repo, first commit, Android side builds</span>
+      <span>Date: 2026-08-31</span>
+    </div>
+  </header>
+
+  <section>
+    <p class="eyebrow">The idea in one line</p>
+    <p>You miss a call. Before you forget, the app has already added
+      <em>Call back Jane Doe (+1 555 0134)</em> to your Super Productivity inbox, with the time and a
+      tap-to-dial link in the notes. Known contacts, spam, and quiet hours are skipped per your rules.</p>
+
+    <div class="flow" aria-label="Data flow from missed call to task">
+      <div class="flow-step">
+        <span class="n">01</span><span class="t">Call ends</span>
+        <span class="d">TelephonyCallback fires on RINGING → IDLE</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <span class="n">02</span><span class="t">Read call log</span>
+        <span class="d">CallLog.Calls, newest MISSED_TYPE row</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <span class="n">03</span><span class="t">Apply rules</span>
+        <span class="d">contact filter, quiet hours, dedup</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <span class="n">04</span><span class="t">Create task</span>
+        <span class="d">deep link to Super Productivity</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 1 · Detecting a missed call</p>
+    <h2>Two signals, used together</h2>
+    <p>Neither signal alone is reliable. The plan is to use the call-state change as a
+      <em>trigger</em> and the call log as the <em>source of truth</em>.</p>
+
+    <h3>Trigger: call-state change</h3>
+    <ul>
+      <li>API 31+: <code>TelephonyCallback.CallStateListener</code>, registered from a foreground service.</li>
+      <li>API 26–30: <code>PhoneStateListener</code> or a <code>PHONE_STATE</code> broadcast receiver.</li>
+      <li>A missed call looks like <code>RINGING</code> then <code>IDLE</code> with no <code>OFFHOOK</code> in between.</li>
+      <li>Wait ~2 seconds after <code>IDLE</code> so the OS has written the call-log row.</li>
+    </ul>
+
+    <h3>Source of truth: the call log</h3>
+    <ul>
+      <li>Query <code>CallLog.Calls</code> for the newest row where <code>TYPE = MISSED_TYPE</code>
+        (optionally also <code>REJECTED_TYPE</code>, <code>BLOCKED_TYPE</code>).</li>
+      <li>Read <code>NUMBER</code>, <code>DATE</code>, <code>_ID</code>, and <code>CACHED_NAME</code>.</li>
+      <li>A <code>ContentObserver</code> on the call-log URI is a good backup trigger and catches
+        calls missed while the phone was off or the service was killed.</li>
+    </ul>
+
+    <h3>Contact name</h3>
+    <p>Reverse-lookup the number through <code>ContactsContract.PhoneLookup</code>. Fall back to the
+      raw number when there is no match. Name lookup needs <code>READ_CONTACTS</code> and is optional.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 2 · Getting the task into Super Productivity</p>
+    <h2>Four surfaces, and what each is good for</h2>
+    <p>Super Productivity exposes four API surfaces. The <strong>deep link</strong> is the baseline
+      that always works. The <strong>Plugin API</strong> is richer and is the recommended path once
+      the plugin is on the phone. Details of the plugin approach are in Part&nbsp;4; this part covers
+      the deep link, which the plugin path also uses as one of its channels.</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>Path</th><th>Works on Android?</th><th>Fit for this app</th></tr>
+        </thead>
+        <tbody>
+          <tr class="pick">
+            <td><strong>Plugin API</strong><br><span class="mono" style="font-size:12px;color:var(--ink-faint)">PluginAPI.addTask()</span></td>
+            <td><span class="tag yes">Yes</span> install confirmed</td>
+            <td>Tags, due dates, live project list, no focus stealing. Cannot read the call log, so our app feeds it over a local channel. The recommended path. See Part&nbsp;4.</td>
+          </tr>
+          <tr>
+            <td><strong>URL Scheme Action</strong><br><span class="mono" style="font-size:12px;color:var(--ink-faint)">com.super-productivity.app://create-task</span></td>
+            <td><span class="tag yes">Yes</span> Capacitor build</td>
+            <td>Fire an <code>ACTION_VIEW</code> intent. No auth, no network. The always-works baseline, and the B1 channel that feeds the plugin.</td>
+          </tr>
+          <tr>
+            <td><strong>Local REST API</strong><br><span class="mono" style="font-size:12px;color:var(--ink-faint)">127.0.0.1:3876/tasks</span></td>
+            <td><span class="tag no">No</span> desktop only</td>
+            <td>Nicest API (full task fields, bearer token) but Electron-only. Usable only as an optional "post to my desktop over LAN" mode.</td>
+          </tr>
+          <tr>
+            <td><strong>Sync Server REST API</strong><br><span class="mono" style="font-size:12px;color:var(--ink-faint)">POST /api/sync/ops</span></td>
+            <td><span class="tag no">No</span> E2EE</td>
+            <td>Append-only operation log, not a task-entry API. Every op is ciphertext under your E2EE key. Ruled out for both read and write. See Part&nbsp;3.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The deep link</h3>
+    <pre><code><span class="c-com"># Android / iOS (Capacitor) scheme</span>
+com.super-productivity.app://create-task?title=&lt;text&gt;&amp;notes=&lt;text&gt;&amp;projectId=&lt;id&gt;
+
+<span class="c-com"># Example the app would fire</span>
+com.super-productivity.app://create-task?<span class="c-key">title</span>=<span class="c-str">Call%20back%20Jane%20Doe%20(%2B15550134)</span>&amp;<span class="c-key">notes</span>=<span class="c-str">Missed%202026-08-31%2014:12%20%C2%B7%20tel:+15550134</span></code></pre>
+    <pre><code><span class="c-com">// Kotlin</span>
+val uri = Uri.parse("com.super-productivity.app://create-task").buildUpon()
+    .appendQueryParameter("title", title)
+    .appendQueryParameter("notes", notes)
+    .build()
+startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))</code></pre>
+
+    <div class="note">
+      <span class="lbl">Known limits of the deep link</span>
+      <p>Params are <code>title</code> (required, 300 char max), <code>notes</code>, and
+        <code>projectId</code> only. No tag or due-date param. Short syntax like <code>#tag</code> or
+        <code>@today</code> is stored as literal text, not parsed. It creates one task per call and
+        does its own nothing about duplicates, so dedup is on us.</p>
+    </div>
+    <div class="note risk">
+      <span class="lbl">Must verify in a spike</span>
+      <p><strong>Does firing the deep link pull Super Productivity to the foreground every time?</strong>
+        If it does, capturing 5 missed calls means 5 app switches. Mitigations: batch and fire on
+        screen-off, or check whether SP handles the intent silently. Also confirm the minimum SP
+        version that ships the Android URL scheme.</p>
+    </div>
+
+    <h3>Picking the target project (deep-link fallback only)</h3>
+    <p>This applies only if the build falls back to the plain deep link. The plugin path in
+      Part&nbsp;4 gives a live project dropdown with none of this.</p>
+    <p>The deep link takes a <code>projectId</code> but there is no read action to list projects. With
+      Super Sync and E2EE on, the sync data and the Local File Sync file are all ciphertext to us
+      (Part&nbsp;3). The one plaintext source is a <strong>data export</strong> or an
+      <strong>automatic backup</strong> that Super Productivity writes locally as human-readable
+      JSON, outside the sync layer.</p>
+    <ul>
+      <li>In Super Productivity: <strong>Settings → Export data</strong>, which writes a full-state
+        JSON file. Automatic backups (<code>backups/YYYY-MM-DD.json</code>) are the same format.</li>
+      <li>In our app: a one-time file pick. Or point us at a folder and we read the newest export in
+        it on each settings open.</li>
+      <li>We parse the <code>project</code> entities and fill the dropdown with names. The stored
+        value is the project id, exactly what the deep link wants.</li>
+      <li>Read-only. We never write to SP data.</li>
+    </ul>
+    <div class="note">
+      <span class="lbl">Trade-offs</span>
+      <p>The list is a snapshot from the export's date, shown next to the dropdown. A project added
+        in SP after that needs a fresh export. Projects change rarely, so a manual re-export is fine.
+        If that is still too much friction, leave it on <strong>Inbox</strong> and triage there.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 3 · Super Sync is ruled out</p>
+    <h2>End-to-end encryption closes every Super Sync path</h2>
+    <p>Your setup: a self-hosted Super Sync server with E2EE on. The keys live only on your devices.
+      Super Productivity has no access to them, and with E2EE required the clients refuse plaintext
+      uploads and refuse plaintext downloads. Every operation on the server is ciphertext.</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Idea</th><th>Why it fails under E2EE</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>App writes tasks as sync ops</strong></td>
+            <td>The op payload must be encrypted with your key. The app would have to hold your key and reimplement SP's crypto. Rejected.</td>
+          </tr>
+          <tr>
+            <td><strong>Server shim appends the op</strong></td>
+            <td>The server cannot encrypt a payload it has no key for. Giving the server your key defeats E2EE. Rejected.</td>
+          </tr>
+          <tr>
+            <td><strong>Read-only fetch for the project list</strong></td>
+            <td><code>GET /api/sync/ops</code> returns ciphertext. Same key and crypto problem, just for reading. Rejected.</td>
+          </tr>
+          <tr>
+            <td><strong>Read the Local File Sync JSON</strong></td>
+            <td>That file goes through the same sync layer, so it is encrypted too. Rejected.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <span class="lbl">What still works</span>
+      <p><strong>Writing tasks is unaffected.</strong> The deep link hands the task to your running
+        Super Productivity app, which encrypts and syncs it the normal way. E2EE never enters our
+        code. A <strong>plugin</strong> is the other option that sidesteps E2EE, because it runs on
+        the decrypted state inside the app. See Part&nbsp;4.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 4 · Option · a local plugin bridge</p>
+    <h2>A plugin, on the phone, no server</h2>
+    <p>A Super Productivity plugin runs inside the app on the decrypted state, so E2EE is a non-issue
+      for it, and it can do what the deep link cannot:
+      <code>addTask</code> / <code>updateTask</code> with <code>tagIds</code>, <code>dueDay</code>,
+      <code>timeEstimate</code> and <code>projectId</code>, plus live <code>getAllProjects()</code>
+      and <code>getAllTags()</code>. It cannot read the call log or be triggered from outside, so it
+      needs a channel from our app. The plugin API exposes <code>platform: 'android'</code>, a
+      <code>TASK_CREATED</code> hook, and <code>PluginAPI.request</code> gated by
+      <code>allowedHosts</code> plus an <code>http</code> permission. Two on-device channels use
+      those, no server involved.</p>
+
+    <h3>B1 · deep link, then enrich</h3>
+    <ul>
+      <li>App fires the <code>create-task</code> deep link with a compact marker packed into
+        <code>notes</code>, e.g. <code>sp-cb:{"num":"+15550134","rule":"unknown","id":"…"}</code>.</li>
+      <li>Plugin's <code>TASK_CREATED</code> hook fires, reads the marker, calls
+        <code>updateTask</code> to set project, tags and due day, then strips the marker from notes.</li>
+      <li>Zero network. Fully offline. The only channel is the deep link, so it inherits whatever
+        focus behaviour the spike finds. The marker shows in the note for a second or two.</li>
+    </ul>
+
+    <h3>B2 · loopback HTTP</h3>
+    <ul>
+      <li>App runs a tiny HTTP server bound to <code>127.0.0.1</code> from its foreground service.</li>
+      <li>Plugin declares <code>permissions: ["http"]</code> and <code>allowedHosts: ["127.0.0.1"]</code>,
+        and a timer polls it while SP is open. It calls <code>addTask</code> with full fields, then acks.</li>
+      <li>No deep link, no foreground pop, no server. Hinges on <code>PluginAPI.request</code>
+        accepting a loopback host and the Android transport allowing cleartext to loopback. Plausible
+        if that request is proxied through Capacitor's native HTTP, which bypasses the WebView CSP.
+        Unverified.</li>
+    </ul>
+
+    <p>Both share a plugin config dialog with real <code>&lt;select&gt;</code> dropdowns from
+      <code>getAllProjects()</code> and <code>getAllTags()</code>, config in
+      <code>persistDataSynced</code>, dedup by call id. Precedent: the <strong>SP-MCP</strong> project
+      is a plugin running a polling loop against a local process.</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>&nbsp;</th><th>Path A · deep link</th><th>B1 · enrich</th><th>B2 · loopback</th></tr></thead>
+        <tbody>
+          <tr><td>Tags, due day, estimate</td><td><span class="tag no">no</span></td><td><span class="tag yes">yes</span></td><td><span class="tag yes">yes</span></td></tr>
+          <tr><td>Project picker</td><td>import an export</td><td>live dropdown</td><td>live dropdown</td></tr>
+          <tr><td>Pulls SP to foreground</td><td>likely</td><td>likely</td><td>no</td></tr>
+          <tr><td>Server</td><td>none</td><td>none</td><td>none</td></tr>
+          <tr><td>Main risk</td><td>focus, thin fields</td><td>Android plugin install</td><td>plugin install + loopback transport</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <span class="lbl">Confirmed</span>
+      <p>Plugins <strong>can be installed on Super Productivity for Android</strong>. That was the
+        gate on this whole approach. The plugin bridge is now the primary path. What the spike
+        settles is only the channel: B2 if <code>PluginAPI.request</code> reaches loopback, B1 if it
+        does not.</p>
+    </div>
+
+    <div class="note">
+      <span class="lbl">Latency</span>
+      <p>The plugin runs only while Super Productivity is open. B1 nudges it open by firing the deep
+        link on each call. B2 is silent, so a task can sit in the phone's local queue until you next
+        open SP. For "call back" tasks that is usually fine. If not, B2 can also post a notification
+        that opens SP on tap.</p>
+    </div>
+
+    <p><strong>Recommendation.</strong> Build the plugin bridge. Try B2 first for the silent, full
+      no-focus-steal experience; fall back to B1 if the loopback transport is blocked. Keep Path A
+      (Part&nbsp;2) as the fallback only if both plugin channels fail in the spike.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 5 · Permissions and how it ships</p>
+    <h2>The call-log permission drives distribution</h2>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Permission</th><th>Why</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">READ_CALL_LOG</td><td>Read missed-call rows</td><td><span class="tag no">Sensitive</span> Play Store restricted</td></tr>
+          <tr><td class="mono">READ_PHONE_STATE</td><td>Call-state trigger</td><td>Runtime prompt</td></tr>
+          <tr><td class="mono">READ_CONTACTS</td><td>Name lookup</td><td>Optional, degrade gracefully</td></tr>
+          <tr><td class="mono">FOREGROUND_SERVICE<br>+ ..._PHONE_CALL</td><td>Keep the listener alive</td><td>Persistent notification</td></tr>
+          <tr><td class="mono">POST_NOTIFICATIONS</td><td>Own status + errors</td><td>API 33+ runtime prompt</td></tr>
+          <tr><td class="mono">RECEIVE_BOOT_COMPLETED</td><td>Restart service after reboot</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="lbl">Decided · sideload</span>
+      <p><strong><code>READ_CALL_LOG</code> is a restricted permission on Google Play</strong>, granted
+        only to default phone/dialer apps after a declaration review. We are shipping a signed APK
+        outside Play instead (direct download, or Obtainium / F-Droid later), which sidesteps the
+        policy entirely. The user grants the permission at the normal runtime prompt.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 6 · Reliability</p>
+    <h2>The parts that break in the field</h2>
+    <ul>
+      <li><strong>Dedup.</strong> Keep a Room table of processed <code>CallLog._ID</code> values.
+        Both the state trigger and the ContentObserver can fire for the same call.</li>
+      <li><strong>Retry queue.</strong> If the deep link throws <code>ActivityNotFoundException</code>
+        (SP not installed or updating), queue the task and retry with WorkManager backoff.</li>
+      <li><strong>OEM battery killers.</strong> Xiaomi, Samsung, Oppo aggressively kill background
+        services. Ship an autostart / battery-optimization guide and detect when the service died.</li>
+      <li><strong>Edge cases.</strong> Dual SIM, a call missed during another call, voicemail
+        callbacks, repeated calls from the same number in a short window (collapse into one task).</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 7 · Rules and task shape</p>
+    <h2>What the user controls</h2>
+    <div class="grid">
+      <div class="card"><h4>who</h4><p>Unknown numbers only · known contacts only · per-contact allow / deny list</p></div>
+      <div class="card"><h4>when</h4><p>Quiet hours · working hours only · minimum ring duration before it counts</p></div>
+      <div class="card"><h4>type</h4><p>Missed calls only (rejected and blocked are out of scope)</p></div>
+      <div class="card"><h4>target</h4><p>Project dropdown · from an SP export (deep link) or live from the plugin · defaults to Inbox</p></div>
+      <div class="card"><h4>template</h4><p>Title and notes format, with tokens for name, number, time</p></div>
+      <div class="card"><h4>auto-close</h4><p>When you later dial that number back, fire <code>complete-task</code> by title</p></div>
+    </div>
+    <p style="margin-top:16px">Default title: <code>Call back {name} ({number})</code>.
+      Default notes: <code>Missed {datetime} · tel:{number}</code>.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 8 · Architecture</p>
+    <h2>Components</h2>
+    <h3>Shared, both paths</h3>
+    <div class="grid">
+      <div class="card"><h4>BootReceiver</h4><p>Starts CallMonitorService on boot and app update.</p></div>
+      <div class="card"><h4>CallMonitorService</h4><p>Foreground service holding the TelephonyCallback and a ContentObserver.</p></div>
+      <div class="card"><h4>CallLogRepository</h4><p>Queries new missed calls, resolves contact names.</p></div>
+      <div class="card"><h4>RuleEngine</h4><p>Pure function: call + settings → keep or drop.</p></div>
+      <div class="card"><h4>TaskQueue (Room)</h4><p>Processed-call log plus pending / failed task rows.</p></div>
+      <div class="card"><h4>RetryWorker</h4><p>WorkManager job draining the queue with backoff.</p></div>
+      <div class="card"><h4>UI (Compose)</h4><p>Captured-call history, manual "create task" button, settings, service-health banner.</p></div>
+    </div>
+    <h3>Path A · deep link</h3>
+    <div class="grid">
+      <div class="card"><h4>DeepLinkClient</h4><p>Builds and fires the <code>create-task</code> intent; reports success or queues a retry.</p></div>
+      <div class="card"><h4>ProjectCatalog</h4><p>Parses project names and ids from a plaintext SP export the user imports.</p></div>
+    </div>
+    <h3>Path B · local plugin bridge (no server)</h3>
+    <div class="grid">
+      <div class="card"><h4>B1 · DeepLinkClient + marker</h4><p>Fires <code>create-task</code> with a packed marker in notes for the plugin to read.</p></div>
+      <div class="card"><h4>B2 · LoopbackServer</h4><p>Tiny HTTP server on <code>127.0.0.1</code> in the foreground service; serves the pending list.</p></div>
+      <div class="card"><h4>SP plugin</h4><p>B1: <code>TASK_CREATED</code> hook enriches the task via <code>updateTask</code>. B2: timer polls loopback and calls <code>addTask</code>. Config dialog with live project and tag dropdowns. Dedup by call id in <code>persistDataSynced</code>.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 9 · Decisions</p>
+    <h2>Settled, and what is left</h2>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+        <tbody>
+          <tr><td>Distribution</td><td>Sideloaded APK. No Play Store, no <code>READ_CALL_LOG</code> policy review.</td></tr>
+          <tr><td>Direct Super Sync integration</td><td>None. E2EE makes every op ciphertext to us, read and write.</td></tr>
+          <tr><td>Scope of "missed"</td><td>Missed calls only. Not rejected or blocked.</td></tr>
+          <tr><td>Android plugin install</td><td>Confirmed working. Path B is on.</td></tr>
+          <tr><td>Write path</td><td>Local plugin bridge. B2 (loopback) preferred, B1 (deep link + enrich) as fallback. Spike picks the channel.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Still to answer in the spike, in order</h3>
+    <ol>
+      <li>B2: does <code>PluginAPI.request</code> reach <code>127.0.0.1</code> on Android, cleartext? If yes, B2 is the build.</li>
+      <li>B1 fallback: does the <code>TASK_CREATED</code> hook fire for <code>create-task</code>
+        deep-link tasks, with the task id in the payload? Does firing the deep link steal focus?</li>
+      <li>Plugin config dialog: confirm <code>getAllProjects()</code> / <code>getAllTags()</code>
+        and a <code>&lt;select&gt;</code> work in <code>openDialog</code> on Android.</li>
+      <li>Whether the plugin can be updated in place, or the user re-loads it on each version.</li>
+    </ol>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 10 · Effort</p>
+    <h2>Phasing</h2>
+    <div class="phase">
+      <div class="when">2 days</div>
+      <div class="what"><b>Spike</b><span>Read the call log. Load a stub plugin on SP Android and test
+        the channel: does <code>PluginAPI.request</code> reach <code>127.0.0.1</code> (B2), else does
+        <code>TASK_CREATED</code> fire for deep-link tasks (B1). Lock the channel.</span></div>
+    </div>
+    <div class="phase">
+      <div class="when">~1 week</div>
+      <div class="what"><b>App core</b><span>Foreground service, missed-call detection, dedup, one
+        rule (known vs unknown), retry queue, minimal history UI.</span></div>
+    </div>
+    <div class="phase">
+      <div class="when">~1 week</div>
+      <div class="what"><b>Plugin + channel</b><span>The SP plugin: loopback poll (B2) or
+        <code>TASK_CREATED</code> enrich (B1), <code>addTask</code> / <code>updateTask</code> with
+        full fields, config dialog with live project and tag dropdowns, dedup by call id. Plus the
+        app side of the channel.</span></div>
+    </div>
+    <div class="phase">
+      <div class="when">~1 week</div>
+      <div class="what"><b>Polish</b><span>Full rule set, quiet hours, per-contact lists, task
+        templates, auto-close on callback, onboarding and OEM battery guidance.</span></div>
+    </div>
+    <p style="margin-top:20px;color:var(--ink-soft);font-size:14px">Total: <strong>~3 weeks</strong>
+      plus the spike. Path A (deep link, export-import dropdown) stays a
+      <strong>~2.5 week</strong> fallback if both plugin channels fail. E2EE removed the Super Sync
+      work rather than adding any.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Part 11 · Spike checklist</p>
+    <h2>Two days to lock the channel</h2>
+    <p>Goal: a throwaway Android app and a stub plugin that together prove call-log read plus one
+      working app&nbsp;→&nbsp;plugin channel. Run on a <strong>real device</strong>, not an emulator,
+      so telephony and the call log are real. Work top to bottom. Stop each task at its verdict.</p>
+
+    <div class="note">
+      <span class="lbl">Starter code is committed</span>
+      <p>The stubs for tasks 1–4 already exist in the repo, first commit.
+        <code>spike/android/</code> is a throwaway Kotlin app: <code>CallDetector</code> +
+        <code>CallLogReader</code> (detection), a Room dedup ledger and retry queue
+        (<code>QueueRepository</code>, <code>RetryWorker</code>), and <code>LoopbackService</code>
+        running NanoHTTPD on <code>127.0.0.1:47623</code>. It builds today with
+        <code>./gradlew assembleDebug</code>. <code>spike/plugin/</code> is the stub plugin
+        (<code>manifest.json</code> + <code>plugin.js</code>) that probes the API, polls the
+        loopback server for B2, and has a <code>TASK_CREATED</code> enrich path for B1. Each
+        folder has a README. The checklist below is what to run and record, not what to write
+        from scratch.</p>
+    </div>
+
+    <div class="progress">
+      <span id="pcount">0 / 0</span>
+      <span class="bar"><i id="pbar"></i></span>
+      <button class="reset-btn" type="button" id="preset">reset</button>
+    </div>
+
+    <div class="task-head"><h3>0 · Setup</h3><span class="est">~1 h</span></div>
+    <ul class="check">
+      <li><label><input type="checkbox"><span>Install Super Productivity on a physical Android phone. Record the version.</span></label></li>
+      <li><label><input type="checkbox"><span>Pair it with your Super Sync server, E2EE on. Confirm it syncs a test task.</span></label></li>
+      <li><label><input type="checkbox"><span>Line up a way to place real calls to the phone: a second handset or a VoIP number.</span></label></li>
+      <li><label><input type="checkbox"><span>New Android Studio project. Kotlin, min SDK 26, a single foreground service and a one-screen UI.</span></label></li>
+    </ul>
+
+    <div class="task-head"><h3>1 · Call-log read</h3><span class="est">~2 h</span></div>
+    <ul class="check">
+      <li><label><input type="checkbox"><span>Tap <strong>Grant permissions</strong>, approve call log, phone, contacts.</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Show newest missed call</strong> reads <code>CallLog.Calls</code> directly. Confirm it returns a real row.</span></label></li>
+      <li><label><input type="checkbox"><span>Tap <strong>Start bridge + detector</strong>. Confirm <code>detector: telephony trigger ON</code> and <code>call-log observer ON</code>.</span></label></li>
+      <li><label><input type="checkbox"><span>Place a real missed call. Watch for <code>state: RINGING</code> → <code>state: IDLE</code> → <code>MISSED CALL via telephony</code> → <code>enqueued task</code>.</span></label></li>
+      <li><label><input type="checkbox"><span>Register a <code>ContentObserver</code> on <code>CallLog.Calls.CONTENT_URI</code>. Confirm it fires on a new missed call.</span></label></li>
+      <li><label><input type="checkbox"><span>Repeat with the app backgrounded and the screen off. Note what still works.</span></label></li>
+      <li><label><input type="checkbox"><span>Resolve one number to a contact name via <code>ContactsContract.PhoneLookup</code>.</span></label></li>
+    </ul>
+
+    <div class="task-head"><h3>2 · Plugin loads on SP Android</h3><span class="est">~2 h</span></div>
+    <ul class="check">
+      <li><label><input type="checkbox"><span>Set <code>minSupVersion</code> in <code>spike/plugin/manifest.json</code> to the phone's SP version.</span></label></li>
+      <li><label><input type="checkbox"><span>Load <code>spike/plugin/</code> on Super Productivity Android. Write down the exact steps and the accepted format (folder, zip, URL).</span></label></li>
+      <li><label><input type="checkbox"><span>Confirm the snack appears, so <code>plugin.js</code> runs.</span></label></li>
+      <li><label><input type="checkbox"><span><code>getAllProjects()</code> and <code>getAllTags()</code> return real data. Log it.</span></label></li>
+      <li><label><input type="checkbox"><span><code>registerConfigHandler</code> plus <code>openDialog</code> with an HTML <code>&lt;select&gt;</code> renders and returns the picked value on Android.</span></label></li>
+      <li><label><input type="checkbox"><span><code>persistDataSynced</code> / <code>loadSyncedData</code> round-trip. <code>setSecret</code> / <code>getSecret</code> round-trip.</span></label></li>
+      <li><label><input type="checkbox"><span>Edit the plugin and reload. Note whether it updates in place or needs a full re-add.</span></label></li>
+    </ul>
+
+    <div class="task-head"><h3>3 · Channel B2 · loopback HTTP</h3><span class="est">~3 h</span></div>
+    <ul class="check">
+      <li><label><input type="checkbox"><span>Start the bridge (<code>LoopbackService</code>) and tap <strong>Self-test GET /pending</strong> — expect <code>200</code> before the plugin is involved.</span></label></li>
+      <li><label><input type="checkbox"><span>Confirm the manifest already has <code>permissions: ["http"]</code> and <code>allowedHosts: ["127.0.0.1"]</code>.</span></label></li>
+      <li><label><input type="checkbox"><span>With the plugin loaded, watch its console: <code>B2 request ok</code> or <code>B2 request FAILED</code>. It polls every 5 s and acks.</span></label></li>
+      <li><label><input type="checkbox"><span>If it fails, capture the exact error: CSP, cleartext block, host not allowed, method unsupported.</span></label></li>
+      <li><label><input type="checkbox"><span>Retry with <code>allowedHosts: ["localhost"]</code> and <code>http://localhost:PORT</code>.</span></label></li>
+      <li><label><input type="checkbox"><span>Sanity check: point <code>PluginAPI.request</code> at a plain LAN IP to confirm the method works at all on Android.</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Verdict:</strong> B2 viable, yes or no. If yes, skip Task 4.</span></label></li>
+    </ul>
+
+    <div class="task-head"><h3>4 · Channel B1 · deep link then enrich</h3><span class="est opt">~2 h · only if B2 fails</span></div>
+    <ul class="check">
+      <li><label><input type="checkbox"><span>Fire <code>Intent(ACTION_VIEW, "com.super-productivity.app://create-task?title=Test&amp;notes=sp-cb:{...}")</code> from the app.</span></label></li>
+      <li><label><input type="checkbox"><span>Confirm a task appears in SP with that title and notes.</span></label></li>
+      <li><label><input type="checkbox"><span>Record on video whether SP jumps to the foreground, and how disruptive it is.</span></label></li>
+      <li><label><input type="checkbox"><span>In the plugin, <code>registerHook(PluginHooks.TASK_CREATED, fn)</code>. Log the payload. Does it carry the new task id and the notes?</span></label></li>
+      <li><label><input type="checkbox"><span>From the hook, <code>updateTask(id, { tagIds, projectId, dueDay, notes })</code>. Confirm it applies and syncs.</span></label></li>
+      <li><label><input type="checkbox"><span>If the hook lacks the id: fallback test, poll <code>getTasks()</code> for notes containing the marker.</span></label></li>
+      <li><label><input type="checkbox"><span>Time deep-link fire to enriched task, once with SP open, once with SP closed.</span></label></li>
+      <li><label><input type="checkbox"><span><strong>Verdict:</strong> B1 viable, yes or no.</span></label></li>
+    </ul>
+
+    <div class="task-head"><h3>5 · Deep-link details</h3><span class="est">~1 h · needed for B1 and Path A</span></div>
+    <ul class="check">
+      <li><label><input type="checkbox"><span>Confirm the minimum SP version that handles <code>create-task</code>.</span></label></li>
+      <li><label><input type="checkbox"><span>Test the <code>title</code> length cap and URL-encoding of spaces, <code>+</code>, parens, <code>#</code>.</span></label></li>
+      <li><label><input type="checkbox"><span><code>projectId</code> param works with a real id from <code>getAllProjects()</code>.</span></label></li>
+      <li><label><input type="checkbox"><span>Fire the deep link with SP not installed. Confirm <code>ActivityNotFoundException</code>, no crash.</span></label></li>
+    </ul>
+
+    <div class="task-head"><h3>6 · Path A dropdown fallback</h3><span class="est opt">~1 h · only if all plugin channels fail</span></div>
+    <ul class="check">
+      <li><label><input type="checkbox"><span>SP Android: Settings → Export data. Save the JSON.</span></label></li>
+      <li><label><input type="checkbox"><span>Confirm it is plaintext despite E2EE.</span></label></li>
+      <li><label><input type="checkbox"><span>Find where projects live in the JSON. Note the exact path and the id and title fields.</span></label></li>
+      <li><label><input type="checkbox"><span>Check whether SP Android can write the export to a folder our app reads via SAF, or only to share-sheet targets.</span></label></li>
+    </ul>
+
+    <div class="task-head"><h3>7 · Close out</h3><span class="est">~1 h</span></div>
+    <ul class="check">
+      <li><label><input type="checkbox"><span>Pick the channel: B2 if viable, else B1, else Path A.</span></label></li>
+      <li><label><input type="checkbox"><span>Write the findings into Part 4 and Part 10: chosen channel, SP version, surprises, revised effort.</span></label></li>
+      <li><label><input type="checkbox"><span>Keep the stub app and plugin as the seed for the build.</span></label></li>
+    </ul>
+
+    <div class="note">
+      <span class="lbl">Done when</span>
+      <p>Call-log read works on a real device, and one app&nbsp;→&nbsp;plugin channel is proven
+        end to end, with a task appearing in Super Productivity carrying a tag and a due day set by
+        the plugin. If no plugin channel works, the fallback exit is a proven deep link plus a parsed
+        export.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+  (function () {
+    var KEY = "spike-checklist-v1";
+    var boxes = Array.prototype.slice.call(document.querySelectorAll("ul.check input[type=checkbox]"));
+    boxes.forEach(function (b, i) { b.dataset.k = "c" + i; });
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { saved = {}; }
+    boxes.forEach(function (b) { if (saved[b.dataset.k]) b.checked = true; });
+
+    var count = document.getElementById("pcount");
+    var bar = document.getElementById("pbar");
+    function render() {
+      var done = boxes.filter(function (b) { return b.checked; }).length;
+      count.textContent = done + " / " + boxes.length;
+      bar.style.width = (boxes.length ? (done / boxes.length * 100) : 0) + "%";
+    }
+    function save() {
+      var o = {};
+      boxes.forEach(function (b) { if (b.checked) o[b.dataset.k] = 1; });
+      try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {}
+    }
+    boxes.forEach(function (b) {
+      b.addEventListener("change", function () { save(); render(); });
+    });
+    document.getElementById("preset").addEventListener("click", function () {
+      boxes.forEach(function (b) { b.checked = false; });
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      render();
+    });
+    render();
+  })();
+</script>

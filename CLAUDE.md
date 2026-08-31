@@ -18,7 +18,8 @@ Pre-code. The only source is the spike under `spike/`:
 
 Neither is production code. No app-level build, lint, or test setup exists yet.
 
-- **Full scope doc (living):** https://claude.ai/code/artifact/bb79e342-edf5-4054-b4a1-9c6b2d88b533
+- **Full scope doc:** `docs/scope.html` (repo snapshot) — canonical living copy is the artifact at
+  https://claude.ai/code/artifact/bb79e342-edf5-4054-b4a1-9c6b2d88b533
 - **Settled decisions:** `~/.claude/projects/-home-webstas-Documents-Github-SuperProd-Callback-Task/memory/missed-call-app-scope.md`
 
 Read the scope doc before starting the build. The sections below summarise what it settles.
