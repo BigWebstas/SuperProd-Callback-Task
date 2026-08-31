@@ -2,9 +2,14 @@
 .DS_Store
 Thumbs.db
 
-# Android / Gradle (spike)
+# Android / Gradle
 **/build/
 **/.gradle/
 **/local.properties
 *.iml
 *.apk
+
+# Editor/tool-local state, not shared with the team
+.codex/
+/.idea/material_theme_project_new.xml
+/.idea/vcs.xml
