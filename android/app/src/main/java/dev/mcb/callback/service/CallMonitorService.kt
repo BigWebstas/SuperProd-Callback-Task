@@ -18,6 +18,7 @@ import dev.mcb.callback.data.QueueRepository
 import dev.mcb.callback.data.Settings
 import dev.mcb.callback.health.HealthChecker
 import dev.mcb.callback.ui.MainActivity
+import dev.mcb.callback.widget.ServiceStatusWidgetProvider
 import dev.mcb.callback.work.RetryWorker
 
 /**
@@ -55,6 +56,7 @@ class CallMonitorService : Service() {
 
         RetryWorker.schedule(this)
         Settings(this).serviceEnabled = true
+        ServiceStatusWidgetProvider.refreshAll(this)
         emit("call monitor started")
     }
 
@@ -68,6 +70,7 @@ class CallMonitorService : Service() {
         healthChecker?.stop()
         clearHealthFailure()
         Settings(this).serviceEnabled = false
+        ServiceStatusWidgetProvider.refreshAll(this)
         emit("call monitor stopped")
         super.onDestroy()
     }
@@ -115,12 +118,19 @@ class CallMonitorService : Service() {
             .setContentTitle("Callback can't reach Super Productivity")
             .setContentText(reason)
             .setSmallIcon(android.R.drawable.stat_notify_error)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(reason))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openAppIntent())
             .setAutoCancel(false)
             .build()
         val manager = NotificationManagerCompat.from(this)
-        if (manager.areNotificationsEnabled()) {
+        val enabled = manager.areNotificationsEnabled()
+        emit("healthcheck: notifications enabled=$enabled, posting alert")
+        try {
             manager.notify(HEALTH_NOTIFICATION_ID, notification)
+            emit("healthcheck: alert posted")
+        } catch (e: Exception) {
+            emit("healthcheck: alert notify() threw: ${e.message}")
         }
     }
 

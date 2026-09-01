@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Callback</string>
+    <string name="widget_status_stopped">○ Callback stopped</string>
+    <string name="widget_status_running">● Callback running</string>
 </resources>
