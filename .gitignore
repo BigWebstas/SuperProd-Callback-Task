@@ -11,5 +11,6 @@ Thumbs.db
 
 # Editor/tool-local state, not shared with the team
 .codex/
+CLAUDE.md
 /.idea/material_theme_project_new.xml
 /.idea/vcs.xml
