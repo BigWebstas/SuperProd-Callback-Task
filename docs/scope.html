@@ -895,6 +895,21 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
       <li><strong>Edge cases.</strong> Dual SIM, a call missed during another call, voicemail
         callbacks, repeated calls from the same number in a short window (collapse into one task).</li>
     </ul>
+    <div class="note risk">
+      <span class="lbl">Widget layout — the xmlns typo that reads as "Can't load widget", 2026-09-01</span>
+      <p>The home-screen status widget failed to load on every device for days. The layout's root
+        declared <code>xmlns:android="http://schemas.android.com/res/android"</code> — the real URI
+        is <code>.../apk/res/android</code>. <code>aapt2</code> compiles the file either way, but
+        with the wrong URI it never binds the <code>android:</code> attributes to their framework
+        resource IDs, so at runtime <code>layout_width</code> resolves to nothing and
+        <code>AppWidgetHostView</code> inflation throws
+        <code>"You must supply a layout_width attribute"</code>, which Launcher3 surfaces as the
+        generic <em>Can't load widget</em>. Two earlier attempts chased a red herring — a caught,
+        non-fatal <code>"Failed to create idmap"</code> line from the launcher's Material You
+        re-theming pass. Same shape as the <code>LIMIT</code> bug: the broken form looks right and
+        half-works, so it hid. Fix: correct the URI (one character); the compiled tree then shows
+        <code>layout_width(0x010100f4)</code> with its resource id bound.</p>
+    </div>
   </section>
 
   <section>
