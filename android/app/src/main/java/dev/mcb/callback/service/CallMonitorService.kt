@@ -56,6 +56,7 @@ class CallMonitorService : Service() {
 
         RetryWorker.schedule(this)
         Settings(this).serviceEnabled = true
+        isRunning = true
         ServiceStatusWidgetProvider.refreshAll(this)
         emit("call monitor started")
     }
@@ -66,6 +67,7 @@ class CallMonitorService : Service() {
     }
 
     override fun onDestroy() {
+        isRunning = false
         detector?.stop()
         healthChecker?.stop()
         clearHealthFailure()
@@ -139,6 +141,17 @@ class CallMonitorService : Service() {
     }
 
     companion object {
+        /**
+         * True only while the foreground service is actually alive in this
+         * process — the widget's source of truth, so a green tile means the
+         * monitor is really running, not just that [Settings.serviceEnabled]
+         * was left on. Reads as `false` from a fresh process (service not
+         * up yet), which is the answer we want until `onCreate` flips it.
+         */
+        @Volatile
+        var isRunning: Boolean = false
+            private set
+
         const val ACTION_LOG = "dev.mcb.callback.LOG"
         const val ACTION_SCAN_NOW = "dev.mcb.callback.SCAN_NOW"
         const val EXTRA_LINE = "line"

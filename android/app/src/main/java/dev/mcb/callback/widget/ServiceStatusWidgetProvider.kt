@@ -8,15 +8,16 @@ import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
 import dev.mcb.callback.R
-import dev.mcb.callback.data.Settings
+import dev.mcb.callback.service.CallMonitorService
 import dev.mcb.callback.ui.MainActivity
 
 /**
- * Home-screen widget showing whether the call monitor is running. The OS's
- * own `updatePeriodMillis` floor is 30 minutes — too slow to be useful — so
- * [CallMonitorService] pushes a refresh directly via [refreshAll] right after
- * it flips [Settings.serviceEnabled], the same signal the in-app status
- * label uses.
+ * Home-screen widget showing whether the call monitor is actually running.
+ * The state comes from [CallMonitorService.isRunning], not the persisted
+ * enabled flag, so a green tile means the foreground service is live right
+ * now. The OS's own `updatePeriodMillis` floor is 30 minutes — too slow to
+ * be useful — so [CallMonitorService] pushes a refresh directly via
+ * [refreshAll] the moment that state changes.
  */
 class ServiceStatusWidgetProvider : AppWidgetProvider() {
 
@@ -25,7 +26,7 @@ class ServiceStatusWidgetProvider : AppWidgetProvider() {
     }
 
     private fun updateOne(context: Context, manager: AppWidgetManager, id: Int) {
-        val running = Settings(context).serviceEnabled
+        val running = CallMonitorService.isRunning
         val openApp = PendingIntent.getActivity(
             context, 0, Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -35,6 +36,10 @@ class ServiceStatusWidgetProvider : AppWidgetProvider() {
         )
         val views = RemoteViews(context.packageName, R.layout.widget_service_status).apply {
             setTextViewText(R.id.widget_status_text, label)
+            setImageViewResource(
+                R.id.widget_status_dot,
+                if (running) R.drawable.widget_dot_running else R.drawable.widget_dot_stopped,
+            )
             setOnClickPendingIntent(R.id.widget_root, openApp)
         }
         manager.updateAppWidget(id, views)

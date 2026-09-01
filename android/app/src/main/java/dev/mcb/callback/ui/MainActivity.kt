@@ -1,8 +1,6 @@
 package dev.mcb.callback.ui
 
 import android.Manifest
-import android.app.Activity
-import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -15,6 +13,8 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -22,7 +22,9 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import dev.mcb.callback.data.CallFilter
 import dev.mcb.callback.data.QueueRepository
 import dev.mcb.callback.data.Settings
@@ -36,11 +38,12 @@ import kotlin.concurrent.thread
 
 /**
  * Single-screen control panel: permissions, write-path config, the capture
- * rule, start/stop, and a live log. No layout XML, matching the spike — the
- * UI is throwaway-simple by design; Part 7's full rule set and template
- * editor are later polish, not this first slice.
+ * rule, start/stop. Built in code, no layout XML. The look follows
+ * PebbleRecorder (sibling repo): a plain AppCompat DayNight theme, a centred
+ * column, an icon and bold status line up top, a faded version footer. The
+ * debug tools and the live log sit behind an "Advanced" toggle.
  */
-class MainActivity : Activity() {
+class MainActivity : AppCompatActivity() {
 
     private val settings by lazy { Settings(this) }
     private val clock = SimpleDateFormat("HH:mm:ss", Locale.US)
@@ -48,13 +51,16 @@ class MainActivity : Activity() {
     private lateinit var hostField: EditText
     private lateinit var portField: EditText
     private lateinit var tokenField: EditText
-    private lateinit var projectField: EditText
-    private lateinit var projectLabel: TextView
+    private lateinit var projectSpinner: Spinner
     private lateinit var filterGroup: RadioGroup
     private lateinit var declinedCheck: CheckBox
     private lateinit var statusLabel: TextView
     private lateinit var logView: TextView
     private lateinit var logScroll: ScrollView
+    private lateinit var advancedBox: LinearLayout
+
+    /** Spinner row -> project; index 0 is always Inbox (`null`). */
+    private var projectItems: List<Project?> = listOf(null)
 
     private val logReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -74,39 +80,68 @@ class MainActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(24), dp(24), dp(24), dp(24))
         }
 
-        root.addView(sectionLabel("Permissions"))
+        root.addView(android.widget.ImageView(this).apply {
+            setImageResource(dev.mcb.callback.R.drawable.ic_callback)
+            layoutParams = LinearLayout.LayoutParams(dp(64), dp(64)).apply {
+                bottomMargin = dp(12)
+            }
+        })
+
+        statusLabel = TextView(this).apply {
+            text = statusText(CallMonitorService.isRunning)
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+        root.addView(statusLabel)
+
+        root.addView(heading("Permissions"))
         root.addView(button("Grant permissions") { requestPermissionsIfNeeded() })
 
-        root.addView(sectionLabel("Write path — Super Productivity Local REST API"))
-        hostField = labeled(root, "Host or LAN IP", settings.apiHost)
-        portField = labeled(root, "Port", settings.apiPort.toString())
-        tokenField = labeled(root, "Bearer token", settings.apiToken)
-        projectField = labeled(root, "Project ID (optional, blank = Inbox)", settings.projectId.orEmpty())
-        projectLabel = TextView(this).apply {
-            text = projectStatusText()
-            textSize = 12f
-            setPadding(0, 4, 0, 8)
+        root.addView(heading("Write path — Super Productivity Local REST API"))
+        hostField = field(root, "Host or LAN IP", settings.apiHost)
+        portField = field(root, "Port", settings.apiPort.toString())
+        tokenField = field(root, "Bearer token", settings.apiToken)
+
+        root.addView(label("Project"))
+        projectSpinner = Spinner(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(320), WRAP_CONTENT)
         }
-        root.addView(projectLabel)
-        root.addView(button("Pick project…") { pickProject() })
+        root.addView(projectSpinner)
+        setProjectItems(initialProjectItems())
+        projectSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val picked = projectItems.getOrNull(position)
+                // The adapter fires this once on attach and again on every rebuild;
+                // only write when the choice actually differs from what's stored.
+                if (picked?.id == settings.projectId) return
+                settings.projectId = picked?.id
+                settings.projectTitle = picked?.title
+                append("project -> ${picked?.title ?: "Inbox"}")
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
+
         root.addView(button("Save + test connection") { saveAndTest() })
 
-        root.addView(sectionLabel("Which missed calls to capture"))
+        root.addView(heading("Which missed calls to capture"))
         filterGroup = RadioGroup(this).apply {
             orientation = RadioGroup.VERTICAL
             listOf(
                 CallFilter.ALL to "All missed calls",
                 CallFilter.KNOWN_ONLY to "Known contacts only",
                 CallFilter.UNKNOWN_ONLY to "Unknown numbers only",
-            ).forEach { (filter, label) ->
+            ).forEach { (filter, text) ->
                 addView(RadioButton(this@MainActivity).apply {
                     // RadioGroup only enforces mutual exclusion between children that have
                     // a real view id — without one, more than one button can show checked.
                     id = View.generateViewId()
-                    text = label
+                    this.text = text
                     tag = filter
                     isChecked = settings.callFilter == filter
                 })
@@ -134,12 +169,7 @@ class MainActivity : Activity() {
             }
         })
 
-        root.addView(sectionLabel("Monitor"))
-        statusLabel = TextView(this).apply {
-            text = statusText(settings.serviceEnabled)
-            setPadding(0, 0, 0, 8)
-        }
-        root.addView(statusLabel)
+        root.addView(heading("Monitor"))
         root.addView(button("Start monitor") {
             CallMonitorService.start(this)
             setStatus(true)
@@ -150,16 +180,30 @@ class MainActivity : Activity() {
             setStatus(false)
             append("stop requested")
         })
-        root.addView(button("Scan now") {
+
+        val advancedToggle = button("Show advanced") { }
+        root.addView(advancedToggle)
+        advancedBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+        }
+        advancedToggle.setOnClickListener {
+            val show = advancedBox.visibility != View.VISIBLE
+            advancedBox.visibility = if (show) View.VISIBLE else View.GONE
+            advancedToggle.text = if (show) "Hide advanced" else "Show advanced"
+        }
+        advancedBox.addView(button("Scan now") {
             CallMonitorService.scanNow(this)
             append("scan requested")
         })
-        root.addView(button("Show recent") { showRecent() })
-        root.addView(button("Retry failed now") {
+        advancedBox.addView(button("Show recent") { showRecent() })
+        advancedBox.addView(button("Retry failed now") {
             withRepo { append("re-queued ${it.retryFailed()} failed task(s)") }
         })
-        root.addView(button("Seed a test call") { withRepo { it.seedFakeCall() } })
-        root.addView(button("Clear log") { logView.text = "" })
+        advancedBox.addView(button("Seed a test call") { withRepo { it.seedFakeCall() } })
+        advancedBox.addView(button("Clear log") { logView.text = "" })
 
         logView = TextView(this).apply {
             typeface = android.graphics.Typeface.MONOSPACE
@@ -168,9 +212,20 @@ class MainActivity : Activity() {
         }
         logScroll = ScrollView(this).apply {
             addView(logView)
-            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(220)).apply {
+                topMargin = dp(8)
+            }
         }
-        root.addView(logScroll)
+        advancedBox.addView(logScroll)
+        root.addView(advancedBox)
+
+        root.addView(TextView(this).apply {
+            text = "Callback v${versionName()}"
+            textSize = 12f
+            alpha = 0.6f
+            gravity = Gravity.CENTER
+            setPadding(0, dp(24), 0, 0)
+        })
 
         setContentView(ScrollView(this).apply { addView(root) })
         append("ready")
@@ -181,7 +236,8 @@ class MainActivity : Activity() {
         // Resync in case the service was started/stopped elsewhere (the notification,
         // BootReceiver, an adb command) while this activity wasn't in the foreground
         // to see the log broadcast.
-        setStatus(settings.serviceEnabled)
+        setStatus(CallMonitorService.isRunning)
+        loadProjects()
         val filter = IntentFilter(CallMonitorService.ACTION_LOG)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(logReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -202,13 +258,6 @@ class MainActivity : Activity() {
         settings.apiHost = hostField.text.toString().trim()
         settings.apiPort = portField.text.toString().trim().toIntOrNull() ?: 3876
         settings.apiToken = tokenField.text.toString().trim()
-        val typedProjectId = projectField.text.toString().trim()
-        if (typedProjectId != settings.projectId.orEmpty()) {
-            // typed by hand rather than picked — the cached title no longer applies
-            settings.projectTitle = null
-        }
-        settings.projectId = typedProjectId
-        projectLabel.text = projectStatusText()
         append("saved: ${settings.apiHost}:${settings.apiPort}")
 
         val config = settings.apiConfig()
@@ -216,6 +265,7 @@ class MainActivity : Activity() {
             append("test skipped: host and token are required")
             return
         }
+        loadProjects()
         thread {
             val result = SuperProductivityApi(config).testConnection()
             result.onSuccess { code ->
@@ -232,51 +282,36 @@ class MainActivity : Activity() {
         statusLabel.text = statusText(running)
     }
 
-    private fun projectStatusText(): String {
+    // --- project dropdown ----------------------------------------------------
+
+    /** Inbox, plus the saved project (so the current choice shows before /projects loads). */
+    private fun initialProjectItems(): List<Project?> = buildList {
+        add(null)
         val id = settings.projectId
-        return when {
-            id == null -> "No project set — new tasks go to Inbox"
-            settings.projectTitle != null -> "Picked: ${settings.projectTitle} ($id)"
-            else -> "Project id: $id (typed by hand, not picked)"
-        }
+        if (id != null) add(Project(id, settings.projectTitle ?: id))
     }
 
-    /** GET /projects, then an AlertDialog to pick one — confirmed live, docs/scope.html
-     *  Part 4b addendum. Saves both the id (what the API needs) and the title (what's
-     *  worth showing back to a human) so [projectStatusText] doesn't need another call. */
-    private fun pickProject() {
+    private fun setProjectItems(items: List<Project?>) {
+        projectItems = items
+        val labels = items.map { it?.title ?: "Inbox (no project)" }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        projectSpinner.adapter = adapter
+        val selected = items.indexOfFirst { it?.id == settings.projectId }
+        projectSpinner.setSelection(if (selected >= 0) selected else 0)
+    }
+
+    /** GET /projects and refill the dropdown — confirmed live, docs/scope.html Part 4b addendum. */
+    private fun loadProjects() {
         val config = settings.apiConfig()
-        if (!config.isConfigured) {
-            append("pick project: save host + token first")
-            return
-        }
-        append("fetching /projects…")
+        if (!config.isConfigured) return
         thread {
             runCatching { SuperProductivityApi(config).listProjects() }
-                .onSuccess { projects -> runOnUiThread { showProjectDialog(projects) } }
-                .onFailure { e -> append("fetch projects FAILED: ${e.message}") }
-        }
-    }
-
-    private fun showProjectDialog(projects: List<Project>) {
-        val labels = (listOf("Inbox (no project)") + projects.map { it.title }).toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("Pick a project")
-            .setItems(labels) { _, index ->
-                if (index == 0) {
-                    settings.projectId = null
-                    settings.projectTitle = null
-                    projectField.setText("")
-                } else {
-                    val picked = projects[index - 1]
-                    settings.projectId = picked.id
-                    settings.projectTitle = picked.title
-                    projectField.setText(picked.id)
+                .onSuccess { projects ->
+                    runOnUiThread { setProjectItems(listOf<Project?>(null) + projects) }
                 }
-                projectLabel.text = projectStatusText()
-                append("project -> ${settings.projectTitle ?: "Inbox"}")
-            }
-            .show()
+                .onFailure { e -> append("load projects failed: ${e.message}") }
+        }
     }
 
     private fun showRecent() = withRepo { repo ->
@@ -325,31 +360,44 @@ class MainActivity : Activity() {
         }
     }
 
-    // --- tiny view builders (no layout XML, matching the spike) ---------------
+    // --- tiny view builders (no layout XML) ---------------------------------
 
-    private fun sectionLabel(text: String) = TextView(this).apply {
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    private fun versionName(): String =
+        runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "?"
+
+    private fun heading(text: String) = TextView(this).apply {
         this.text = text
-        setPadding(0, 28, 0, 8)
+        gravity = Gravity.CENTER
+        setPadding(0, dp(24), 0, dp(8))
         setTypeface(typeface, android.graphics.Typeface.BOLD)
     }
 
-    private fun labeled(parent: LinearLayout, label: String, initial: String): EditText {
-        val row = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val lbl = TextView(this).apply { text = label; textSize = 12f }
-        val field = EditText(this).apply {
+    private fun label(text: String) = TextView(this).apply {
+        this.text = text
+        textSize = 12f
+        gravity = Gravity.CENTER
+        alpha = 0.7f
+        layoutParams = LinearLayout.LayoutParams(dp(320), WRAP_CONTENT)
+        setPadding(0, dp(10), 0, dp(2))
+    }
+
+    private fun field(parent: LinearLayout, labelText: String, initial: String): EditText {
+        parent.addView(label(labelText))
+        return EditText(this).apply {
             setText(initial)
-            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+            layoutParams = LinearLayout.LayoutParams(dp(320), WRAP_CONTENT)
+            parent.addView(this)
         }
-        row.addView(lbl)
-        row.addView(field)
-        parent.addView(row)
-        return field
     }
 
     private fun button(label: String, onClick: () -> Unit) = Button(this).apply {
         text = label
         gravity = Gravity.CENTER
-        layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+        layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+            topMargin = dp(12)
+        }
         setOnClickListener { onClick() }
     }
 
