@@ -1,5 +1,6 @@
 package dev.mcb.callback.service
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,9 +12,11 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import dev.mcb.callback.CallDetector
 import dev.mcb.callback.data.QueueRepository
 import dev.mcb.callback.data.Settings
+import dev.mcb.callback.health.HealthChecker
 import dev.mcb.callback.ui.MainActivity
 import dev.mcb.callback.work.RetryWorker
 
@@ -25,11 +28,13 @@ import dev.mcb.callback.work.RetryWorker
 class CallMonitorService : Service() {
 
     private var detector: CallDetector? = null
+    private var healthChecker: HealthChecker? = null
     private lateinit var repo: QueueRepository
 
     override fun onCreate() {
         super.onCreate()
-        startForeground(NOTIFICATION_ID, buildNotification())
+        startForeground(NOTIFICATION_ID, buildMonitorNotification())
+        ensureHealthChannel()
 
         repo = QueueRepository(this, ::emit)
         detector = CallDetector(
@@ -39,6 +44,13 @@ class CallMonitorService : Service() {
             onMissed = { call, captured ->
                 if (captured) emit("-> queued as \"${call.defaultTitle()}\"")
             },
+        ).also { it.start() }
+
+        healthChecker = HealthChecker(
+            context = this,
+            onLog = ::emit,
+            onFailure = ::notifyHealthFailure,
+            onRecovered = ::clearHealthFailure,
         ).also { it.start() }
 
         RetryWorker.schedule(this)
@@ -53,6 +65,8 @@ class CallMonitorService : Service() {
 
     override fun onDestroy() {
         detector?.stop()
+        healthChecker?.stop()
+        clearHealthFailure()
         Settings(this).serviceEnabled = false
         emit("call monitor stopped")
         super.onDestroy()
@@ -65,23 +79,53 @@ class CallMonitorService : Service() {
         sendBroadcast(Intent(ACTION_LOG).setPackage(packageName).putExtra(EXTRA_LINE, line))
     }
 
-    private fun buildNotification(): Notification {
+    private fun openAppIntent(): PendingIntent = PendingIntent.getActivity(
+        this, 0, Intent(this, MainActivity::class.java),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    private fun buildMonitorNotification(): Notification {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID, "Call monitor", NotificationManager.IMPORTANCE_LOW
             )
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
-        val openApp = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Callback is watching for missed calls")
             .setSmallIcon(android.R.drawable.ic_menu_call)
-            .setContentIntent(openApp)
+            .setContentIntent(openAppIntent())
             .setOngoing(true)
             .build()
+    }
+
+    private fun ensureHealthChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                HEALTH_CHANNEL_ID, "Write-path health", NotificationManager.IMPORTANCE_DEFAULT
+            )
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
+    }
+
+    /** Fires once on the healthy -> unhealthy transition — see [HealthChecker]. */
+    @SuppressLint("MissingPermission") // checked below; the emit() log line still lands either way
+    private fun notifyHealthFailure(reason: String) {
+        val notification = NotificationCompat.Builder(this, HEALTH_CHANNEL_ID)
+            .setContentTitle("Callback can't reach Super Productivity")
+            .setContentText(reason)
+            .setSmallIcon(android.R.drawable.stat_notify_error)
+            .setContentIntent(openAppIntent())
+            .setAutoCancel(false)
+            .build()
+        val manager = NotificationManagerCompat.from(this)
+        if (manager.areNotificationsEnabled()) {
+            manager.notify(HEALTH_NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun clearHealthFailure() {
+        NotificationManagerCompat.from(this).cancel(HEALTH_NOTIFICATION_ID)
     }
 
     companion object {
@@ -90,7 +134,9 @@ class CallMonitorService : Service() {
         const val EXTRA_LINE = "line"
         private const val TAG = "Callback"
         private const val CHANNEL_ID = "call_monitor"
+        private const val HEALTH_CHANNEL_ID = "write_path_health"
         private const val NOTIFICATION_ID = 1
+        private const val HEALTH_NOTIFICATION_ID = 2
 
         fun start(context: Context) {
             context.startForegroundService(Intent(context, CallMonitorService::class.java))
