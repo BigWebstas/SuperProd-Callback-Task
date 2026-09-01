@@ -3,6 +3,7 @@ package dev.mcb.callback.service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -13,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import dev.mcb.callback.CallDetector
 import dev.mcb.callback.data.QueueRepository
 import dev.mcb.callback.data.Settings
+import dev.mcb.callback.ui.MainActivity
 import dev.mcb.callback.work.RetryWorker
 
 /**
@@ -70,9 +72,14 @@ class CallMonitorService : Service() {
             )
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
+        val openApp = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Callback is watching for missed calls")
             .setSmallIcon(android.R.drawable.ic_menu_call)
+            .setContentIntent(openApp)
             .setOngoing(true)
             .build()
     }

@@ -52,12 +52,20 @@ class MainActivity : Activity() {
     private lateinit var projectLabel: TextView
     private lateinit var filterGroup: RadioGroup
     private lateinit var declinedCheck: CheckBox
+    private lateinit var statusLabel: TextView
     private lateinit var logView: TextView
     private lateinit var logScroll: ScrollView
 
     private val logReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            intent?.getStringExtra(CallMonitorService.EXTRA_LINE)?.let { append(it) }
+            val line = intent?.getStringExtra(CallMonitorService.EXTRA_LINE) ?: return
+            append(line)
+            // The service is the actual source of truth for its own lifecycle —
+            // resync off these two lines rather than trust only the button taps.
+            when (line) {
+                "call monitor started" -> setStatus(true)
+                "call monitor stopped" -> setStatus(false)
+            }
         }
     }
 
@@ -127,12 +135,19 @@ class MainActivity : Activity() {
         })
 
         root.addView(sectionLabel("Monitor"))
+        statusLabel = TextView(this).apply {
+            text = statusText(settings.serviceEnabled)
+            setPadding(0, 0, 0, 8)
+        }
+        root.addView(statusLabel)
         root.addView(button("Start monitor") {
             CallMonitorService.start(this)
+            setStatus(true)
             append("start requested")
         })
         root.addView(button("Stop monitor") {
             CallMonitorService.stop(this)
+            setStatus(false)
             append("stop requested")
         })
         root.addView(button("Scan now") {
@@ -163,6 +178,10 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        // Resync in case the service was started/stopped elsewhere (the notification,
+        // BootReceiver, an adb command) while this activity wasn't in the foreground
+        // to see the log broadcast.
+        setStatus(settings.serviceEnabled)
         val filter = IntentFilter(CallMonitorService.ACTION_LOG)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(logReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -205,6 +224,12 @@ class MainActivity : Activity() {
                 append("test connection FAILED: ${e.message}")
             }
         }
+    }
+
+    private fun statusText(running: Boolean) = if (running) "● Running" else "○ Stopped"
+
+    private fun setStatus(running: Boolean) = runOnUiThread {
+        statusLabel.text = statusText(running)
     }
 
     private fun projectStatusText(): String {
