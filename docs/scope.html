@@ -855,6 +855,37 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
         no application response) before a follow-up <code>DELETE</code> could confirm removal — check
         whether it needs deleting by hand once the desktop instance is responsive again.</p>
     </div>
+
+    <h3>Addendum · the project and tag pickers, 2026-09-01</h3>
+    <p>The same Local REST API also serves the two "where does the task go" dropdowns in
+      <code>ui/MainActivity</code>. Both are read-only <code>GET</code>s over the same
+      port-forward, with the same literal <code>Host: localhost</code> header, and both write
+      one stored id that <code>SuperProductivityApi.createTask</code> attaches to every
+      outbound <code>POST /tasks</code>.</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Picker</th><th>Route</th><th>Field on <code>POST /tasks</code></th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Project (one, default Inbox)</td>
+            <td><code>GET /projects</code></td>
+            <td><code>projectId</code> (string)</td>
+            <td><span class="tag yes">Spike-confirmed</span> live, 2026-08-31</td>
+          </tr>
+          <tr>
+            <td>Tag (one, default none)</td>
+            <td><code>GET /tags</code></td>
+            <td><code>tagIds</code> (array, one element)</td>
+            <td><span class="tag no">Unverified</span> — coded from the SP API wiki, not yet hit against a real instance</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>One tag only, not multi-select — it matches the project dropdown and keeps the config
+      screen simple. The tag applies at delivery time from stored settings, the same as
+      <code>projectId</code>, so a queued row picks up whatever tag is configured when it is
+      finally sent, not when the call came in. Next: confirm <code>GET /tags</code> returns real
+      data and that <code>tagIds</code> in the create body actually lands on the task.</p>
   </section>
 
   <section>
