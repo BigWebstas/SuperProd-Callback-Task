@@ -55,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var filterGroup: RadioGroup
     private lateinit var declinedCheck: CheckBox
     private lateinit var statusLabel: TextView
+    private lateinit var monitorLine: TextView
     private lateinit var logView: TextView
     private lateinit var logScroll: ScrollView
     private lateinit var advancedBox: LinearLayout
@@ -170,6 +171,11 @@ class MainActivity : AppCompatActivity() {
         })
 
         root.addView(heading("Monitor"))
+        monitorLine = TextView(this).apply {
+            gravity = Gravity.CENTER
+            text = monitorText(CallMonitorService.isRunning)
+        }
+        root.addView(monitorLine)
         root.addView(button("Start monitor") {
             CallMonitorService.start(this)
             setStatus(true)
@@ -278,8 +284,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun statusText(running: Boolean) = if (running) "● Running" else "○ Stopped"
 
+    private fun monitorText(running: Boolean) =
+        if (running) "Monitor is running" else "Monitor is not running"
+
     private fun setStatus(running: Boolean) = runOnUiThread {
         statusLabel.text = statusText(running)
+        monitorLine.text = monitorText(running)
     }
 
     // --- project dropdown ----------------------------------------------------
