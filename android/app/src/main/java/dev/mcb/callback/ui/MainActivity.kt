@@ -30,6 +30,7 @@ import dev.mcb.callback.data.QueueRepository
 import dev.mcb.callback.data.Settings
 import dev.mcb.callback.net.Project
 import dev.mcb.callback.net.SuperProductivityApi
+import dev.mcb.callback.net.Tag
 import dev.mcb.callback.service.CallMonitorService
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -52,16 +53,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var portField: EditText
     private lateinit var tokenField: EditText
     private lateinit var projectSpinner: Spinner
+    private lateinit var tagSpinner: Spinner
     private lateinit var filterGroup: RadioGroup
     private lateinit var declinedCheck: CheckBox
     private lateinit var statusLabel: TextView
-    private lateinit var monitorLine: TextView
     private lateinit var logView: TextView
     private lateinit var logScroll: ScrollView
     private lateinit var advancedBox: LinearLayout
 
     /** Spinner row -> project; index 0 is always Inbox (`null`). */
     private var projectItems: List<Project?> = listOf(null)
+
+    /** Spinner row -> tag; index 0 is always "No tag" (`null`). */
+    private var tagItems: List<Tag?> = listOf(null)
 
     private val logReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -128,6 +132,26 @@ class MainActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
         }
 
+        root.addView(label("Tag (applied to every callback task)"))
+        tagSpinner = Spinner(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(320), WRAP_CONTENT)
+        }
+        root.addView(tagSpinner)
+        setTagItems(initialTagItems())
+        tagSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val picked = tagItems.getOrNull(position)
+                // Same as the project spinner: the adapter fires this on attach and on
+                // every rebuild; only write when the choice actually changed.
+                if (picked?.id == settings.tagId) return
+                settings.tagId = picked?.id
+                settings.tagTitle = picked?.title
+                append("tag -> ${picked?.title ?: "none"}")
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
+
         root.addView(button("Save + test connection") { saveAndTest() })
 
         root.addView(heading("Which missed calls to capture"))
@@ -171,11 +195,6 @@ class MainActivity : AppCompatActivity() {
         })
 
         root.addView(heading("Monitor"))
-        monitorLine = TextView(this).apply {
-            gravity = Gravity.CENTER
-            text = monitorText(CallMonitorService.isRunning)
-        }
-        root.addView(monitorLine)
         root.addView(button("Start monitor") {
             CallMonitorService.start(this)
             setStatus(true)
@@ -244,6 +263,7 @@ class MainActivity : AppCompatActivity() {
         // to see the log broadcast.
         setStatus(CallMonitorService.isRunning)
         loadProjects()
+        loadTags()
         val filter = IntentFilter(CallMonitorService.ACTION_LOG)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(logReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -272,6 +292,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         loadProjects()
+        loadTags()
         thread {
             val result = SuperProductivityApi(config).testConnection()
             result.onSuccess { code ->
@@ -284,12 +305,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun statusText(running: Boolean) = if (running) "● Running" else "○ Stopped"
 
-    private fun monitorText(running: Boolean) =
-        if (running) "Monitor is running" else "Monitor is not running"
-
     private fun setStatus(running: Boolean) = runOnUiThread {
         statusLabel.text = statusText(running)
-        monitorLine.text = monitorText(running)
     }
 
     // --- project dropdown ----------------------------------------------------
@@ -321,6 +338,38 @@ class MainActivity : AppCompatActivity() {
                     runOnUiThread { setProjectItems(listOf<Project?>(null) + projects) }
                 }
                 .onFailure { e -> append("load projects failed: ${e.message}") }
+        }
+    }
+
+    // --- tag dropdown ------------------------------------------------------
+
+    /** "No tag", plus the saved tag (so the current choice shows before /tags loads). */
+    private fun initialTagItems(): List<Tag?> = buildList {
+        add(null)
+        val id = settings.tagId
+        if (id != null) add(Tag(id, settings.tagTitle ?: id))
+    }
+
+    private fun setTagItems(items: List<Tag?>) {
+        tagItems = items
+        val labels = items.map { it?.title ?: "No tag" }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        tagSpinner.adapter = adapter
+        val selected = items.indexOfFirst { it?.id == settings.tagId }
+        tagSpinner.setSelection(if (selected >= 0) selected else 0)
+    }
+
+    /** GET /tags and refill the dropdown. Same envelope and flow as [loadProjects]. */
+    private fun loadTags() {
+        val config = settings.apiConfig()
+        if (!config.isConfigured) return
+        thread {
+            runCatching { SuperProductivityApi(config).listTags() }
+                .onSuccess { tags ->
+                    runOnUiThread { setTagItems(listOf<Tag?>(null) + tags) }
+                }
+                .onFailure { e -> append("load tags failed: ${e.message}") }
         }
     }
 

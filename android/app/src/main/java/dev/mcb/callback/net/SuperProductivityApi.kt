@@ -5,12 +5,16 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /** id + title from `GET /projects` — everything else that route returns is dropped. */
 data class Project(val id: String, val title: String)
+
+/** id + title from `GET /tags` — everything else that route returns is dropped. */
+data class Tag(val id: String, val title: String)
 
 /**
  * Client for Super Productivity's Local REST API, reached over the user's own
@@ -39,6 +43,7 @@ class SuperProductivityApi(private val config: ApiConfig) {
             put("title", title)
             put("notes", notes)
             config.projectId?.let { put("projectId", it) }
+            config.tagId?.let { put("tagIds", JSONArray().put(it)) }
         }
         val request = Request.Builder()
             .url("${config.baseUrl}/tasks")
@@ -73,6 +78,25 @@ class SuperProductivityApi(private val config: ApiConfig) {
             return (0 until data.length()).map { i ->
                 val p = data.getJSONObject(i)
                 Project(p.getString("id"), p.getString("title"))
+            }
+        }
+    }
+
+    /** Live tag list for the picker — `GET /tags`, same envelope as `/projects`. */
+    fun listTags(): List<Tag> {
+        val request = Request.Builder()
+            .url("${config.baseUrl}/tags")
+            .header("Host", "localhost")
+            .header("Authorization", "Bearer ${config.token}")
+            .get()
+            .build()
+        client.newCall(request).execute().use { resp ->
+            val text = resp.body?.string().orEmpty()
+            if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}: ${text.take(200)}")
+            val data = JSONObject(text).getJSONArray("data")
+            return (0 until data.length()).map { i ->
+                val t = data.getJSONObject(i)
+                Tag(t.getString("id"), t.getString("title"))
             }
         }
     }

@@ -15,6 +15,7 @@ data class ApiConfig(
     val port: Int,
     val token: String,
     val projectId: String?,
+    val tagId: String?,
 ) {
     val baseUrl: String get() = "http://$host:$port"
     val isConfigured: Boolean get() = host.isNotBlank() && token.isNotBlank()
@@ -47,6 +48,16 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_PROJECT_TITLE, null)?.takeIf { it.isNotBlank() }
         set(value) = prefs.edit().putString(KEY_PROJECT_TITLE, value).apply()
 
+    /** One tag id applied to every callback task, picked live from `/tags`. Null = no tag. */
+    var tagId: String?
+        get() = prefs.getString(KEY_TAG, null)?.takeIf { it.isNotBlank() }
+        set(value) = prefs.edit().putString(KEY_TAG, value).apply()
+
+    /** Display name for [tagId], picked live from `/tags` — see [ui.MainActivity]. */
+    var tagTitle: String?
+        get() = prefs.getString(KEY_TAG_TITLE, null)?.takeIf { it.isNotBlank() }
+        set(value) = prefs.edit().putString(KEY_TAG_TITLE, value).apply()
+
     var callFilter: CallFilter
         get() = CallFilter.valueOf(prefs.getString(KEY_FILTER, CallFilter.ALL.name)!!)
         set(value) = prefs.edit().putString(KEY_FILTER, value.name).apply()
@@ -61,7 +72,7 @@ class Settings(context: Context) {
         get() = prefs.getBoolean(KEY_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_ENABLED, value).apply()
 
-    fun apiConfig() = ApiConfig(apiHost, apiPort, apiToken, projectId)
+    fun apiConfig() = ApiConfig(apiHost, apiPort, apiToken, projectId, tagId)
 
     companion object {
         private const val KEY_HOST = "api_host"
@@ -69,6 +80,8 @@ class Settings(context: Context) {
         private const val KEY_TOKEN = "api_token"
         private const val KEY_PROJECT = "project_id"
         private const val KEY_PROJECT_TITLE = "project_title"
+        private const val KEY_TAG = "tag_id"
+        private const val KEY_TAG_TITLE = "tag_title"
         private const val KEY_FILTER = "call_filter"
         private const val KEY_DECLINED = "capture_declined"
         private const val KEY_ENABLED = "service_enabled"
