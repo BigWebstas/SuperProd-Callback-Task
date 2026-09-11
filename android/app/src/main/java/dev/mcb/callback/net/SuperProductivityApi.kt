@@ -26,10 +26,8 @@ data class Tag(val id: String, val title: String)
  *
  *  - The server rejects any `Host` header that isn't a literal `localhost`
  *    (`403 Invalid Host header` otherwise) — a DNS-rebinding guard. We send
- *    that header on every request no matter what [ApiConfig.host]/[port] we
- *    actually connect to — including through an HTTPS reverse proxy, since
- *    TLS SNI/cert checks are driven by the connection's real target, not by
- *    this application-level header override (see [ApiConfig] doc).
+ *    that header on direct-LAN requests; a reverse-proxy target is expected
+ *    to rewrite it downstream instead (see [ApiConfig.useLocalhostHostHeader]).
  *  - `POST /tasks` (no `/api` prefix) creates a real task on the desktop's
  *    decrypted in-memory state and returns its id in `data.id`.
  */
@@ -42,9 +40,11 @@ class SuperProductivityApi(private val config: ApiConfig) {
 
     class ApiException(message: String) : IOException(message)
 
-    /** Common headers for every call — see class doc on the `Host` override. */
-    private fun Request.Builder.authHeaders(): Request.Builder =
-        header("Host", "localhost").header("Authorization", "Bearer ${config.token}")
+    /** Common headers for every call — see [ApiConfig.useLocalhostHostHeader]. */
+    private fun Request.Builder.authHeaders(): Request.Builder {
+        if (config.useLocalhostHostHeader) header("Host", "localhost")
+        return header("Authorization", "Bearer ${config.token}")
+    }
 
     /** Creates a task, returns its remote id. Throws [ApiException] on any non-2xx or transport error. */
     fun createTask(title: String, notes: String): String {
