@@ -50,8 +50,8 @@ class MainActivity : AppCompatActivity() {
     private val clock = SimpleDateFormat("HH:mm:ss", Locale.US)
 
     private lateinit var hostField: EditText
-    private lateinit var portField: EditText
     private lateinit var tokenField: EditText
+    private lateinit var estimateField: EditText
     private lateinit var projectSpinner: Spinner
     private lateinit var tagSpinner: Spinner
     private lateinit var filterGroup: RadioGroup
@@ -108,9 +108,9 @@ class MainActivity : AppCompatActivity() {
         root.addView(button("Grant permissions") { requestPermissionsIfNeeded() })
 
         root.addView(heading("Write path — Super Productivity Local REST API"))
-        hostField = field(root, "Host/LAN IP, or https://proxy-domain", settings.apiHost)
-        portField = field(root, "Port", settings.apiPort.toString())
+        hostField = field(root, "Host[:port], LAN IP[:port], or https://proxy-domain", settings.apiHost)
         tokenField = field(root, "Bearer token", settings.apiToken)
+        estimateField = field(root, "Default task time (minutes, 0 = none)", settings.defaultEstimateMinutes.toString())
 
         root.addView(label("Project"))
         projectSpinner = Spinner(this).apply {
@@ -282,8 +282,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveAndTest() {
         settings.apiHost = hostField.text.toString().trim()
-        settings.apiPort = portField.text.toString().trim().toIntOrNull() ?: 3876
         settings.apiToken = tokenField.text.toString().trim()
+        settings.defaultEstimateMinutes = estimateField.text.toString().trim().toIntOrNull() ?: 0
 
         val config = settings.apiConfig()
         append("saved: ${config.baseUrl}")

@@ -53,6 +53,9 @@ class SuperProductivityApi(private val config: ApiConfig) {
             put("notes", notes)
             config.projectId?.let { put("projectId", it) }
             config.tagId?.let { put("tagIds", JSONArray().put(it)) }
+            if (config.defaultEstimateMinutes > 0) {
+                put("timeEstimate", config.defaultEstimateMinutes * 60_000L)
+            }
         }
         val request = Request.Builder()
             .url("${config.baseUrl}/tasks")

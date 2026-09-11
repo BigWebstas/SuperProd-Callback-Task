@@ -6,39 +6,53 @@ enum class CallFilter { ALL, KNOWN_ONLY, UNKNOWN_ONLY }
 
 /**
  * User-configured write-path target: Super Productivity's Local REST API.
- * Two shapes for [host]:
+ * Three shapes for [host], one field — no separate port field:
  *
  *  - a bare LAN IP/hostname (e.g. `192.168.1.20`) — reached directly over a
- *    LAN port-forward (docs/scope.html Part 4b) using [port] and plain HTTP.
- *    The server 403s any request whose `Host` header isn't a literal
- *    `localhost` (DNS-rebinding guard), so the client sends that header.
+ *    LAN port-forward (docs/scope.html Part 4b) using [DEFAULT_LAN_PORT] and
+ *    plain HTTP.
+ *  - `host:port` (e.g. `192.168.1.20:9876`) — same, with an explicit port.
  *  - a full `http(s)://...` URL (e.g. `https://sp.example.net`) — reached
  *    through a reverse proxy the user put in front of the same Local REST
- *    API. [port] is ignored in this shape. The `Host: localhost` override is
- *    *not* sent here — confirmed against a real IIS/ARR proxy: forcing it
- *    client-side doesn't just skip TLS SNI (that's driven by the connection
- *    target, so it'd survive), it also breaks the proxy's own HTTP-level
- *    host-header site routing, landing the request on the wrong site (404).
- *    The proxy is expected to rewrite the Host header to `localhost` itself
- *    on the backend leg, after it's done routing on the real domain.
+ *    API; its port is whatever the URL/scheme says, so there's nothing to
+ *    configure separately.
+ *
+ * The direct-LAN shapes always send a literal `Host: localhost` header — the
+ * server 403s any request whose `Host` header isn't that (DNS-rebinding
+ * guard). A proxy URL does *not* get that override — confirmed against a
+ * real IIS/ARR proxy: forcing it client-side doesn't just skip TLS SNI
+ * (that's driven by the connection target, so it'd survive), it also breaks
+ * the proxy's own HTTP-level host-header site routing, landing the request
+ * on the wrong site (404). The proxy is expected to rewrite the Host header
+ * to `localhost` itself on the backend leg, after it's done routing on the
+ * real domain.
  */
 data class ApiConfig(
     val host: String,
-    val port: Int,
     val token: String,
     val projectId: String?,
     val tagId: String?,
+    /** Applied to every created task's `timeEstimate`, in minutes. 0 = omit. */
+    val defaultEstimateMinutes: Int,
 ) {
     private val trimmedHost: String get() = host.trim()
     private val isProxyUrl: Boolean get() = trimmedHost.contains("://")
 
     val baseUrl: String
-        get() = if (isProxyUrl) trimmedHost.trimEnd('/') else "http://$trimmedHost:$port"
+        get() = when {
+            isProxyUrl -> trimmedHost.trimEnd('/')
+            trimmedHost.contains(":") -> "http://$trimmedHost"
+            else -> "http://$trimmedHost:$DEFAULT_LAN_PORT"
+        }
 
     /** Whether to force `Host: localhost` on every request — see class doc. */
     val useLocalhostHostHeader: Boolean get() = !isProxyUrl
 
     val isConfigured: Boolean get() = host.isNotBlank() && token.isNotBlank()
+
+    companion object {
+        const val DEFAULT_LAN_PORT = 3876
+    }
 }
 
 /** Thin SharedPreferences wrapper. Not encrypted — matches the spike; the bearer
@@ -50,10 +64,6 @@ class Settings(context: Context) {
     var apiHost: String
         get() = prefs.getString(KEY_HOST, "") ?: ""
         set(value) = prefs.edit().putString(KEY_HOST, value).apply()
-
-    var apiPort: Int
-        get() = prefs.getInt(KEY_PORT, 3876)
-        set(value) = prefs.edit().putInt(KEY_PORT, value).apply()
 
     var apiToken: String
         get() = prefs.getString(KEY_TOKEN, "") ?: ""
@@ -78,6 +88,11 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_TAG_TITLE, null)?.takeIf { it.isNotBlank() }
         set(value) = prefs.edit().putString(KEY_TAG_TITLE, value).apply()
 
+    /** Applied to every created task's `timeEstimate`. 0 = don't set one. */
+    var defaultEstimateMinutes: Int
+        get() = prefs.getInt(KEY_ESTIMATE, 30)
+        set(value) = prefs.edit().putInt(KEY_ESTIMATE, value).apply()
+
     var callFilter: CallFilter
         get() = CallFilter.valueOf(prefs.getString(KEY_FILTER, CallFilter.ALL.name)!!)
         set(value) = prefs.edit().putString(KEY_FILTER, value.name).apply()
@@ -92,16 +107,16 @@ class Settings(context: Context) {
         get() = prefs.getBoolean(KEY_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_ENABLED, value).apply()
 
-    fun apiConfig() = ApiConfig(apiHost, apiPort, apiToken, projectId, tagId)
+    fun apiConfig() = ApiConfig(apiHost, apiToken, projectId, tagId, defaultEstimateMinutes)
 
     companion object {
         private const val KEY_HOST = "api_host"
-        private const val KEY_PORT = "api_port"
         private const val KEY_TOKEN = "api_token"
         private const val KEY_PROJECT = "project_id"
         private const val KEY_PROJECT_TITLE = "project_title"
         private const val KEY_TAG = "tag_id"
         private const val KEY_TAG_TITLE = "tag_title"
+        private const val KEY_ESTIMATE = "default_estimate_minutes"
         private const val KEY_FILTER = "call_filter"
         private const val KEY_DECLINED = "capture_declined"
         private const val KEY_ENABLED = "service_enabled"

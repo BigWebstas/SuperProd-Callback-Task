@@ -23,10 +23,10 @@ Status: **building.** The production app lives in [`android/`](android/).
   the Local REST API enabled.
 - The API binds `127.0.0.1` only, so it must be reached one of two ways. The
   Host/LAN IP field in the app accepts either:
-  - a bare LAN IP/hostname + port, reached through a direct **port-forward**
-    on the desktop (e.g. `socat`, an SSH tunnel, or nginx). Every request the
-    app sends carries a literal `Host: localhost` header — the server 403s
-    anything else.
+  - a bare LAN IP/hostname (optionally `host:port`, default port `3876`),
+    reached through a direct **port-forward** on the desktop (e.g. `socat`,
+    an SSH tunnel, or nginx). Every request the app sends carries a literal
+    `Host: localhost` header — the server 403s anything else.
   - a full `https://...` URL, reached through a **reverse proxy** (e.g. for
     remote/off-LAN access over TLS). The app does *not* force the `Host:
     localhost` header in this case — the proxy is expected to rewrite it on
@@ -44,8 +44,8 @@ Gradle 8.14.3 (wrapper), JDK 17+, Android SDK 34 / build-tools 34. KSP drives Ro
 
 ## Setup
 
-Open the app, then: grant permissions → enter the API host / port / bearer token
-→ pick a project → choose which calls to capture → **Start monitor**.
+Open the app, then: grant permissions → enter the API host and bearer token →
+pick a project → choose which calls to capture → **Start monitor**.
 
 ## Layout
 
