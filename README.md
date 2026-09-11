@@ -21,9 +21,17 @@ Status: **building.** The production app lives in [`android/`](android/).
 
 - A **Super Productivity desktop instance**, always running on the same LAN, with
   the Local REST API enabled.
-- The API binds `127.0.0.1` only, so it must be reached through a **port-forward**
-  on the desktop (e.g. `socat`, an SSH tunnel, or nginx). Every request the app
-  sends carries a literal `Host: localhost` header — the server 403s anything else.
+- The API binds `127.0.0.1` only, so it must be reached one of two ways. The
+  Host/LAN IP field in the app accepts either:
+  - a bare LAN IP/hostname + port, reached through a direct **port-forward**
+    on the desktop (e.g. `socat`, an SSH tunnel, or nginx). Every request the
+    app sends carries a literal `Host: localhost` header — the server 403s
+    anything else.
+  - a full `https://...` URL, reached through a **reverse proxy** (e.g. for
+    remote/off-LAN access over TLS). The app does *not* force the `Host:
+    localhost` header in this case — the proxy is expected to rewrite it on
+    the backend leg instead. See [`docs/reverse-proxy/`](docs/reverse-proxy/)
+    for a confirmed-working IIS 10 + ARR setup.
 - Sideloaded APK, not Google Play: `READ_CALL_LOG` is a Play-restricted permission.
 
 ## Build
