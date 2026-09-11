@@ -1,0 +1,4 @@
+Missed calls to Super Productivity call-back tasks.
+
+- Detect missed calls (telephony trigger + call-log source of truth), filter by rule (known/unknown caller, quiet hours), enqueue with retry.
+- Writes to Super Productivity's Local REST API - direct LAN port-forward, or a reverse-proxy https:// URL (see docs/reverse-proxy/).

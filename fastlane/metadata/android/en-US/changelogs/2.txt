@@ -1,0 +1,6 @@
+Reverse-proxy write path, default task time, and a simpler config screen.
+
+- The app can now reach Super Productivity's Local REST API through a reverse proxy (e.g. HTTPS from off-LAN), not just a direct LAN port-forward. See docs/reverse-proxy/ for a confirmed-working IIS 10 + ARR setup.
+- New "Default task time" setting applies a timeEstimate to every created task.
+- The Host field now takes host, host:port, or a full https:// URL - the separate Port field is gone.
+- Drops the dead FAILED retry state; queued tasks now retry indefinitely, and a retry pass fires immediately when Super Productivity comes back reachable instead of waiting on the 15-minute worker floor.

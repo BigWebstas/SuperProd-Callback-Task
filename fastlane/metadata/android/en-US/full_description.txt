@@ -1,0 +1,13 @@
+Watches for missed calls and turns each one into a "call back" task in
+Super Productivity, filtered by your own rules.
+
+* Known vs. unknown caller, and whether to also capture declined calls.
+* A foreground service with the call log as the source of truth, so
+  nothing is missed if a notification is dropped.
+* Tasks are created via Super Productivity's Local REST API, reached
+  either over your own LAN or through a reverse proxy you control.
+* Queued deliveries retry automatically until they land, with a
+  Room-backed dedup ledger so a call is never turned into two tasks.
+
+Requires a Super Productivity desktop instance, always running and
+reachable from the phone, with its Local REST API enabled.
