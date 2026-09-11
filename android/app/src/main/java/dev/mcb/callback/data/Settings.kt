@@ -5,10 +5,20 @@ import android.content.Context
 enum class CallFilter { ALL, KNOWN_ONLY, UNKNOWN_ONLY }
 
 /**
- * User-configured write-path target: Super Productivity's Local REST API,
- * reached over a LAN port-forward (docs/scope.html Part 4b). The client always
- * sends a literal `Host: localhost` header regardless of [host]/[port] — the
- * server 403s anything else (DNS-rebinding guard).
+ * User-configured write-path target: Super Productivity's Local REST API.
+ * Two shapes for [host]:
+ *
+ *  - a bare LAN IP/hostname (e.g. `192.168.1.20`) — reached directly over a
+ *    LAN port-forward (docs/scope.html Part 4b) using [port] and plain HTTP.
+ *    The server 403s any request whose `Host` header isn't a literal
+ *    `localhost` (DNS-rebinding guard), so the client sends that header.
+ *  - a full `http(s)://...` URL (e.g. `https://sp.example.net`) — reached
+ *    through a reverse proxy the user put in front of the same Local REST
+ *    API. [port] is ignored in this shape. The `Host: localhost` override is
+ *    *not* sent — it's specific to the direct-LAN DNS-rebinding guard, and
+ *    forcing it here would break TLS SNI/cert matching and the proxy's own
+ *    routing on the real domain. The proxy is expected to set its own
+ *    `Host: localhost` when it forwards to the API.
  */
 data class ApiConfig(
     val host: String,
@@ -17,7 +27,15 @@ data class ApiConfig(
     val projectId: String?,
     val tagId: String?,
 ) {
-    val baseUrl: String get() = "http://$host:$port"
+    private val trimmedHost: String get() = host.trim()
+    private val isProxyUrl: Boolean get() = trimmedHost.contains("://")
+
+    val baseUrl: String
+        get() = if (isProxyUrl) trimmedHost.trimEnd('/') else "http://$trimmedHost:$port"
+
+    /** Whether to force `Host: localhost` on every request — see class doc. */
+    val useLocalhostHostHeader: Boolean get() = !isProxyUrl
+
     val isConfigured: Boolean get() = host.isNotBlank() && token.isNotBlank()
 }
 

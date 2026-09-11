@@ -17,14 +17,17 @@ data class Project(val id: String, val title: String)
 data class Tag(val id: String, val title: String)
 
 /**
- * Client for Super Productivity's Local REST API, reached over the user's own
- * LAN port-forward (docs/scope.html Part 4b — confirmed working end to end,
- * 2026-08-31). Two things this depends on, both proven in the spike:
+ * Client for Super Productivity's Local REST API — either reached directly
+ * over the user's own LAN port-forward (docs/scope.html Part 4b — confirmed
+ * working end to end, 2026-08-31) or through a reverse proxy the user puts in
+ * front of it (e.g. for HTTPS). See [ApiConfig] for the two host shapes.
+ *
+ * Two things the direct-LAN path depends on, both proven in the spike:
  *
  *  - The server rejects any `Host` header that isn't a literal `localhost`
- *    (`403 Invalid Host header` otherwise) — a DNS-rebinding guard. We must
- *    send that header on every request no matter what [ApiConfig.host]/[port]
- *    we actually connect to.
+ *    (`403 Invalid Host header` otherwise) — a DNS-rebinding guard. We send
+ *    that header on every request, unless [ApiConfig.useLocalhostHostHeader]
+ *    says the target is a proxy URL instead.
  *  - `POST /tasks` (no `/api` prefix) creates a real task on the desktop's
  *    decrypted in-memory state and returns its id in `data.id`.
  */
@@ -37,6 +40,12 @@ class SuperProductivityApi(private val config: ApiConfig) {
 
     class ApiException(message: String) : IOException(message)
 
+    /** Common headers for every call — see [ApiConfig.useLocalhostHostHeader]. */
+    private fun Request.Builder.authHeaders(): Request.Builder {
+        if (config.useLocalhostHostHeader) header("Host", "localhost")
+        return header("Authorization", "Bearer ${config.token}")
+    }
+
     /** Creates a task, returns its remote id. Throws [ApiException] on any non-2xx or transport error. */
     fun createTask(title: String, notes: String): String {
         val body = JSONObject().apply {
@@ -47,8 +56,7 @@ class SuperProductivityApi(private val config: ApiConfig) {
         }
         val request = Request.Builder()
             .url("${config.baseUrl}/tasks")
-            .header("Host", "localhost") // see class doc — required, not optional
-            .header("Authorization", "Bearer ${config.token}")
+            .authHeaders()
             .post(body.toString().toRequestBody(JSON))
             .build()
 
@@ -67,8 +75,7 @@ class SuperProductivityApi(private val config: ApiConfig) {
     fun listProjects(): List<Project> {
         val request = Request.Builder()
             .url("${config.baseUrl}/projects")
-            .header("Host", "localhost")
-            .header("Authorization", "Bearer ${config.token}")
+            .authHeaders()
             .get()
             .build()
         client.newCall(request).execute().use { resp ->
@@ -86,8 +93,7 @@ class SuperProductivityApi(private val config: ApiConfig) {
     fun listTags(): List<Tag> {
         val request = Request.Builder()
             .url("${config.baseUrl}/tags")
-            .header("Host", "localhost")
-            .header("Authorization", "Bearer ${config.token}")
+            .authHeaders()
             .get()
             .build()
         client.newCall(request).execute().use { resp ->
@@ -105,8 +111,7 @@ class SuperProductivityApi(private val config: ApiConfig) {
     fun testConnection(): Result<Int> = runCatching {
         val request = Request.Builder()
             .url("${config.baseUrl}/tasks")
-            .header("Host", "localhost")
-            .header("Authorization", "Bearer ${config.token}")
+            .authHeaders()
             .get()
             .build()
         client.newCall(request).execute().use { it.code }

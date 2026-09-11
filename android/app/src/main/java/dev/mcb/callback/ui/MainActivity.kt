@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(button("Grant permissions") { requestPermissionsIfNeeded() })
 
         root.addView(heading("Write path — Super Productivity Local REST API"))
-        hostField = field(root, "Host or LAN IP", settings.apiHost)
+        hostField = field(root, "Host/LAN IP, or https://proxy-domain", settings.apiHost)
         portField = field(root, "Port", settings.apiPort.toString())
         tokenField = field(root, "Bearer token", settings.apiToken)
 
@@ -224,8 +224,8 @@ class MainActivity : AppCompatActivity() {
             append("scan requested")
         })
         advancedBox.addView(button("Show recent") { showRecent() })
-        advancedBox.addView(button("Retry failed now") {
-            withRepo { append("re-queued ${it.retryFailed()} failed task(s)") }
+        advancedBox.addView(button("Retry now") {
+            withRepo { append("retry pass requested") ; it.runRetryPass() }
         })
         advancedBox.addView(button("Seed a test call") { withRepo { it.seedFakeCall() } })
         advancedBox.addView(button("Clear log") { logView.text = "" })
@@ -284,9 +284,9 @@ class MainActivity : AppCompatActivity() {
         settings.apiHost = hostField.text.toString().trim()
         settings.apiPort = portField.text.toString().trim().toIntOrNull() ?: 3876
         settings.apiToken = tokenField.text.toString().trim()
-        append("saved: ${settings.apiHost}:${settings.apiPort}")
 
         val config = settings.apiConfig()
+        append("saved: ${config.baseUrl}")
         if (!config.isConfigured) {
             append("test skipped: host and token are required")
             return
