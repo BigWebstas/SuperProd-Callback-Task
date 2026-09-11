@@ -54,3 +54,7 @@ pick a project → choose which calls to capture → **Start monitor**.
 | `android/` | the production app (`dev.mcb.callback`) |
 | `spike/` | throwaway proof-of-concept code, kept for reference |
 | `docs/scope.html` | full design doc and history |
+
+## License
+
+[GPL-3.0-or-later](LICENSE).
