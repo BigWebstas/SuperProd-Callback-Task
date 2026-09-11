@@ -70,7 +70,7 @@ class CallMonitorService : Service() {
         isRunning = false
         detector?.stop()
         healthChecker?.stop()
-        clearHealthFailure()
+        NotificationManagerCompat.from(this).cancel(HEALTH_NOTIFICATION_ID)
         Settings(this).serviceEnabled = false
         ServiceStatusWidgetProvider.refreshAll(this)
         emit("call monitor stopped")
@@ -113,6 +113,15 @@ class CallMonitorService : Service() {
         }
     }
 
+    /** Fires once on the unhealthy -> healthy transition — see [HealthChecker].
+     *  Runs a retry pass right away so queued tasks land the moment Super
+     *  Productivity is reachable again, instead of waiting on RetryWorker's
+     *  15-minute floor. */
+    private fun clearHealthFailure() {
+        NotificationManagerCompat.from(this).cancel(HEALTH_NOTIFICATION_ID)
+        Thread { repo.runRetryPass() }.start()
+    }
+
     /** Fires once on the healthy -> unhealthy transition — see [HealthChecker]. */
     @SuppressLint("MissingPermission") // checked below; the emit() log line still lands either way
     private fun notifyHealthFailure(reason: String) {
@@ -134,10 +143,6 @@ class CallMonitorService : Service() {
         } catch (e: Exception) {
             emit("healthcheck: alert notify() threw: ${e.message}")
         }
-    }
-
-    private fun clearHealthFailure() {
-        NotificationManagerCompat.from(this).cancel(HEALTH_NOTIFICATION_ID)
     }
 
     companion object {

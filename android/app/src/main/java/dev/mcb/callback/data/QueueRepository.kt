@@ -22,8 +22,6 @@ class QueueRepository(
     companion object {
         const val PENDING = "PENDING"
         const val SENT = "SENT"
-        const val FAILED = "FAILED"
-        const val MAX_ATTEMPTS = 8
         const val STALE_AFTER_MS = 60_000L
         private const val TAG = "Callback"
     }
@@ -84,18 +82,17 @@ class QueueRepository(
             onLog("task #$rowId -> SENT (remote id $remoteId)")
         } catch (e: Exception) {
             val next = (dao.byId(rowId)?.attempts ?: 0) + 1
-            dao.bumpAttempt(rowId, System.currentTimeMillis())
-            if (next >= MAX_ATTEMPTS) {
-                dao.setState(rowId, FAILED, null, e.message, System.currentTimeMillis())
-                onLog("task #$rowId -> FAILED after $next attempts: ${e.message}")
-            } else {
-                onLog("task #$rowId delivery failed, attempt $next, still PENDING: ${e.message}")
-            }
+            dao.bumpAttempt(rowId, e.message, System.currentTimeMillis())
+            onLog("task #$rowId delivery failed, attempt $next, still PENDING: ${e.message}")
             Log.w(TAG, "delivery failed for task #$rowId", e)
         }
     }
 
-    /** Retries every stale PENDING row. Called by RetryWorker and the UI. */
+    /** Retries every stale PENDING row. Called by RetryWorker, the health-check
+     *  recovery hook, and the UI. A row stays PENDING and keeps retrying no
+     *  matter how many attempts fail — there's no attempt cap, so a task is
+     *  never silently dropped just because Super Productivity was unreachable
+     *  for a while. */
     fun runRetryPass() {
         val now = System.currentTimeMillis()
         val stale = dao.pending().filter { now - it.updatedAt > STALE_AFTER_MS }
@@ -104,12 +101,6 @@ class QueueRepository(
             return
         }
         stale.forEach { deliver(it.id, it.title, it.notes) }
-    }
-
-    fun retryFailed(): Int {
-        val n = dao.retryAllFailed(System.currentTimeMillis())
-        onLog("re-queued $n FAILED tasks")
-        return n
     }
 
     fun recent(limit: Int = 50): List<QueuedTask> = dao.recent(limit)

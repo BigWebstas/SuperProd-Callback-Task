@@ -17,8 +17,9 @@ import androidx.room.RoomDatabase
  *    this CallLog._ID". Both the telephony trigger and the ContentObserver can
  *    fire for one call, so every path claims the id here first.
  *  - [QueuedTask] is the outbound retry queue. One row per accepted missed
- *    call. PENDING means not yet POSTed successfully; SENT carries the remote
- *    task id; FAILED after [QueueRepository.MAX_ATTEMPTS] retry passes.
+ *    call. PENDING means not yet POSTed successfully — it stays PENDING and
+ *    keeps retrying no matter how many attempts fail; SENT carries the
+ *    remote task id once delivery succeeds.
  *
  * DAO methods are blocking. Call them off the main thread.
  */
@@ -37,7 +38,7 @@ data class QueuedTask(
     val name: String?,
     val title: String,
     val notes: String,
-    val state: String,            // PENDING | SENT | FAILED
+    val state: String,            // PENDING | SENT
     val remoteTaskId: String? = null,
     val attempts: Int = 0,
     val lastError: String? = null,
@@ -74,11 +75,8 @@ interface QueueDao {
     @Query("UPDATE queued_task SET state = :state, remoteTaskId = :remoteId, lastError = :err, updatedAt = :ts WHERE id = :id")
     fun setState(id: Long, state: String, remoteId: String?, err: String?, ts: Long)
 
-    @Query("UPDATE queued_task SET attempts = attempts + 1, updatedAt = :ts WHERE id = :id")
-    fun bumpAttempt(id: Long, ts: Long)
-
-    @Query("UPDATE queued_task SET state = 'PENDING', attempts = 0, lastError = NULL, updatedAt = :ts WHERE state = 'FAILED'")
-    fun retryAllFailed(ts: Long): Int
+    @Query("UPDATE queued_task SET attempts = attempts + 1, lastError = :err, updatedAt = :ts WHERE id = :id")
+    fun bumpAttempt(id: Long, err: String?, ts: Long)
 
     @Query("SELECT state || ':' || COUNT(*) FROM queued_task GROUP BY state")
     fun stateCounts(): List<String>

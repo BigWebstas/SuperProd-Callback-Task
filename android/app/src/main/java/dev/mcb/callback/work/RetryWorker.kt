@@ -13,9 +13,11 @@ import java.util.concurrent.TimeUnit
 /**
  * Drains stale PENDING rows by retrying delivery. Periodic only (15 min floor,
  * WorkManager's minimum) — there's no external ack to wait on any more; each
- * delivery attempt either succeeds (SENT) or fails and stays PENDING/FAILED,
- * so a one-shot kick after a failure isn't needed the way the plugin-bridge
- * spike needed one.
+ * delivery attempt either succeeds (SENT) or fails and stays PENDING, with no
+ * attempt cap, so a row just keeps getting retried here until it lands. (A
+ * faster path also exists: [dev.mcb.callback.health.HealthChecker]'s recovery
+ * callback runs a retry pass immediately once Super Productivity is reachable
+ * again, instead of waiting out this worker's 15-minute floor.)
  */
 class RetryWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
 
