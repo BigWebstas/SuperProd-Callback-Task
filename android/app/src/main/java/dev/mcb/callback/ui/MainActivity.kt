@@ -24,6 +24,7 @@ import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import dev.mcb.callback.data.CallFilter
 import dev.mcb.callback.data.QueueRepository
@@ -53,7 +54,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tokenField: EditText
     private lateinit var estimateField: EditText
     private lateinit var projectSpinner: Spinner
-    private lateinit var tagSpinner: Spinner
+    private lateinit var tagButton: Button
     private lateinit var filterGroup: RadioGroup
     private lateinit var declinedCheck: CheckBox
     private lateinit var statusLabel: TextView
@@ -64,8 +65,8 @@ class MainActivity : AppCompatActivity() {
     /** Spinner row -> project; index 0 is always Inbox (`null`). */
     private var projectItems: List<Project?> = listOf(null)
 
-    /** Spinner row -> tag; index 0 is always "No tag" (`null`). */
-    private var tagItems: List<Tag?> = listOf(null)
+    /** Available tags for the picker, populated live from `/tags`. */
+    private var availableTags: List<Tag> = emptyList()
 
     private val logReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -132,25 +133,14 @@ class MainActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
         }
 
-        root.addView(label("Tag (applied to every callback task)"))
-        tagSpinner = Spinner(this).apply {
+        root.addView(label("Tags (applied to every callback task)"))
+        tagButton = Button(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(320), WRAP_CONTENT)
+            isAllCaps = false
+            setOnClickListener { showTagPickerDialog() }
         }
-        root.addView(tagSpinner)
+        root.addView(tagButton)
         setTagItems(initialTagItems())
-        tagSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val picked = tagItems.getOrNull(position)
-                // Same as the project spinner: the adapter fires this on attach and on
-                // every rebuild; only write when the choice actually changed.
-                if (picked?.id == settings.tagId) return
-                settings.tagId = picked?.id
-                settings.tagTitle = picked?.title
-                append("tag -> ${picked?.title ?: "none"}")
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-        }
 
         root.addView(button("Save + test connection") { saveAndTest() })
 
@@ -341,33 +331,102 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- tag dropdown ------------------------------------------------------
+    // --- tag picker (multi-select) -------------------------------------------
 
-    /** "No tag", plus the saved tag (so the current choice shows before /tags loads). */
-    private fun initialTagItems(): List<Tag?> = buildList {
-        add(null)
-        val id = settings.tagId
-        if (id != null) add(Tag(id, settings.tagTitle ?: id))
+    /** Saved tags from settings (so current choices show before /tags loads). */
+    private fun initialTagItems(): List<Tag> {
+        val titles = settings.tagTitles
+        return settings.tagIds.map { id -> Tag(id, titles[id] ?: id) }
     }
 
-    private fun setTagItems(items: List<Tag?>) {
-        tagItems = items
-        val labels = items.map { it?.title ?: "No tag" }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        tagSpinner.adapter = adapter
-        val selected = items.indexOfFirst { it?.id == settings.tagId }
-        tagSpinner.setSelection(if (selected >= 0) selected else 0)
+    private fun setTagItems(tags: List<Tag>) {
+        val serverIds = tags.map { it.id }.toSet()
+        val preserved = settings.tagIds.filter { it !in serverIds }.map { id ->
+            Tag(id, settings.tagTitles[id] ?: id)
+        }
+        availableTags = tags + preserved
+        // Keep tagTitles in sync with any updated titles from server
+        val updatedTitles = settings.tagTitles.toMutableMap()
+        tags.forEach { tag ->
+            if (tag.id in settings.tagIds) {
+                updatedTitles[tag.id] = tag.title
+            }
+        }
+        if (updatedTitles != settings.tagTitles) {
+            settings.tagTitles = updatedTitles
+        }
+        updateTagButtonText()
     }
 
-    /** GET /tags and refill the dropdown. Same envelope and flow as [loadProjects]. */
+    private fun updateTagButtonText() {
+        val selectedIds = settings.tagIds
+        val selectedTitles = if (selectedIds.isEmpty()) {
+            emptyList()
+        } else {
+            val inAvailable = availableTags.filter { it.id in selectedIds }.map { it.title }
+            val availableIds = availableTags.map { it.id }.toSet()
+            val extra = selectedIds.filter { it !in availableIds }.map { settings.tagTitles[it] ?: it }
+            inAvailable + extra
+        }
+        tagButton.text = if (selectedTitles.isEmpty()) {
+            "No tags"
+        } else {
+            selectedTitles.joinToString(", ")
+        }
+    }
+
+    private fun showTagPickerDialog() {
+        if (availableTags.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setTitle("Tags")
+                .setMessage("No tags loaded yet. Make sure Super Productivity is running and tap 'Save + test connection' to load tags.")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+
+        val tagLabels = availableTags.map { it.title }.toTypedArray()
+        val currentIds = settings.tagIds
+        val checkedItems = BooleanArray(availableTags.size) { i ->
+            availableTags[i].id in currentIds
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Select tags")
+            .setMultiChoiceItems(tagLabels, checkedItems) { _, which, isChecked ->
+                checkedItems[which] = isChecked
+            }
+            .setPositiveButton("OK") { _, _ ->
+                val newSelected = availableTags.filterIndexed { index, _ -> checkedItems[index] }
+                val newIds = newSelected.map { it.id }.toSet()
+                val newTitles = newSelected.associate { it.id to it.title }
+                if (newIds != settings.tagIds) {
+                    settings.tagIds = newIds
+                    settings.tagTitles = newTitles
+                    updateTagButtonText()
+                    append("tags -> ${if (newIds.isEmpty()) "none" else newSelected.joinToString { it.title }}")
+                }
+            }
+            .setNeutralButton("Clear all") { _, _ ->
+                if (settings.tagIds.isNotEmpty()) {
+                    settings.tagIds = emptySet()
+                    settings.tagTitles = emptyMap()
+                    updateTagButtonText()
+                    append("tags -> none")
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /** GET /tags and refill the tag list. Same envelope and flow as [loadProjects]. */
     private fun loadTags() {
         val config = settings.apiConfig()
         if (!config.isConfigured) return
         thread {
             runCatching { SuperProductivityApi(config).listTags() }
                 .onSuccess { tags ->
-                    runOnUiThread { setTagItems(listOf<Tag?>(null) + tags) }
+                    runOnUiThread { setTagItems(tags) }
                 }
                 .onFailure { e -> append("load tags failed: ${e.message}") }
         }

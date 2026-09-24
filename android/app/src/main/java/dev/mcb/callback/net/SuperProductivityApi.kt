@@ -52,7 +52,11 @@ class SuperProductivityApi(private val config: ApiConfig) {
             put("title", title)
             put("notes", notes)
             config.projectId?.let { put("projectId", it) }
-            config.tagId?.let { put("tagIds", JSONArray().put(it)) }
+            if (config.tagIds.isNotEmpty()) {
+                val array = JSONArray()
+                config.tagIds.forEach { array.put(it) }
+                put("tagIds", array)
+            }
             if (config.defaultEstimateMinutes > 0) {
                 put("timeEstimate", config.defaultEstimateMinutes * 60_000L)
             }

@@ -873,17 +873,16 @@ startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(FLAG_ACTIVITY_NEW_TASK))<
             <td><span class="tag yes">Spike-confirmed</span> live, 2026-08-31</td>
           </tr>
           <tr>
-            <td>Tag (one, default none)</td>
+            <td>Tags (multi-select, default none)</td>
             <td><code>GET /tags</code></td>
-            <td><code>tagIds</code> (array, one element)</td>
+            <td><code>tagIds</code> (array of strings)</td>
             <td><span class="tag no">Unverified</span> — coded from the SP API wiki, not yet hit against a real instance</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p>One tag only, not multi-select — it matches the project dropdown and keeps the config
-      screen simple. The tag applies at delivery time from stored settings, the same as
-      <code>projectId</code>, so a queued row picks up whatever tag is configured when it is
+    <p>Multi-select tag picker dialog with checkboxes, "Clear all", and "OK". The tags apply at delivery time from stored settings, the same as
+      <code>projectId</code>, so a queued row picks up whatever tags are configured when it is
       finally sent, not when the call came in. Next: confirm <code>GET /tags</code> returns real
       data and that <code>tagIds</code> in the create body actually lands on the task.</p>
   </section>

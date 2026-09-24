@@ -2,6 +2,8 @@ package dev.mcb.callback.data
 
 import android.content.Context
 
+import org.json.JSONObject
+
 enum class CallFilter { ALL, KNOWN_ONLY, UNKNOWN_ONLY }
 
 /**
@@ -31,10 +33,28 @@ data class ApiConfig(
     val host: String,
     val token: String,
     val projectId: String?,
-    val tagId: String?,
+    val tagIds: Set<String> = emptySet(),
     /** Applied to every created task's `timeEstimate`, in minutes. 0 = omit. */
-    val defaultEstimateMinutes: Int,
+    val defaultEstimateMinutes: Int = 0,
 ) {
+    /** Secondary constructor for backwards compatibility with single tagId. */
+    constructor(
+        host: String,
+        token: String,
+        projectId: String?,
+        tagId: String?,
+        defaultEstimateMinutes: Int = 0,
+    ) : this(
+        host = host,
+        token = token,
+        projectId = projectId,
+        tagIds = if (tagId != null) setOf(tagId) else emptySet(),
+        defaultEstimateMinutes = defaultEstimateMinutes,
+    )
+
+    /** First tag id if any, for backwards compatibility. */
+    val tagId: String? get() = tagIds.firstOrNull()
+
     private val trimmedHost: String get() = host.trim()
     private val isProxyUrl: Boolean get() = trimmedHost.contains("://")
 
@@ -78,15 +98,61 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_PROJECT_TITLE, null)?.takeIf { it.isNotBlank() }
         set(value) = prefs.edit().putString(KEY_PROJECT_TITLE, value).apply()
 
-    /** One tag id applied to every callback task, picked live from `/tags`. Null = no tag. */
+    /** All tag ids applied to every callback task, picked live from `/tags`. Empty = no tags. */
+    var tagIds: Set<String>
+        get() {
+            val set = prefs.getStringSet(KEY_TAG_IDS, null)
+            if (set != null) return set.toSet()
+            val legacy = prefs.getString(KEY_TAG, null)?.takeIf { it.isNotBlank() }
+            return if (legacy != null) setOf(legacy) else emptySet()
+        }
+        set(value) = prefs.edit().putStringSet(KEY_TAG_IDS, value.toSet()).apply()
+
+    /** Display names for [tagIds], picked live from `/tags` — see [ui.MainActivity]. */
+    var tagTitles: Map<String, String>
+        get() {
+            val json = prefs.getString(KEY_TAG_TITLES, null)
+            if (json != null) {
+                return runCatching {
+                    val obj = JSONObject(json)
+                    val map = mutableMapOf<String, String>()
+                    val keys = obj.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        map[key] = obj.getString(key)
+                    }
+                    map.toMap()
+                }.getOrDefault(emptyMap())
+            }
+            val legacyId = prefs.getString(KEY_TAG, null)?.takeIf { it.isNotBlank() }
+            val legacyTitle = prefs.getString(KEY_TAG_TITLE, null)?.takeIf { it.isNotBlank() }
+            if (legacyId != null && legacyTitle != null) {
+                return mapOf(legacyId to legacyTitle)
+            }
+            return emptyMap()
+        }
+        set(value) {
+            val obj = JSONObject()
+            value.forEach { (k, v) -> obj.put(k, v) }
+            prefs.edit().putString(KEY_TAG_TITLES, obj.toString()).apply()
+        }
+
+    /** One tag id (first selected) for backwards compatibility. Null = no tag. */
     var tagId: String?
-        get() = prefs.getString(KEY_TAG, null)?.takeIf { it.isNotBlank() }
-        set(value) = prefs.edit().putString(KEY_TAG, value).apply()
+        get() = tagIds.firstOrNull()
+        set(value) {
+            tagIds = if (value != null) setOf(value) else emptySet()
+        }
 
     /** Display name for [tagId], picked live from `/tags` — see [ui.MainActivity]. */
     var tagTitle: String?
-        get() = prefs.getString(KEY_TAG_TITLE, null)?.takeIf { it.isNotBlank() }
-        set(value) = prefs.edit().putString(KEY_TAG_TITLE, value).apply()
+        get() = tagId?.let { tagTitles[it] }
+        set(value) {
+            val currentId = tagId
+            if (currentId != null && value != null) {
+                tagTitles = tagTitles + (currentId to value)
+            }
+        }
 
     /** Applied to every created task's `timeEstimate`. 0 = don't set one. */
     var defaultEstimateMinutes: Int
@@ -107,7 +173,7 @@ class Settings(context: Context) {
         get() = prefs.getBoolean(KEY_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_ENABLED, value).apply()
 
-    fun apiConfig() = ApiConfig(apiHost, apiToken, projectId, tagId, defaultEstimateMinutes)
+    fun apiConfig() = ApiConfig(apiHost, apiToken, projectId, tagIds, defaultEstimateMinutes)
 
     companion object {
         private const val KEY_HOST = "api_host"
@@ -116,6 +182,8 @@ class Settings(context: Context) {
         private const val KEY_PROJECT_TITLE = "project_title"
         private const val KEY_TAG = "tag_id"
         private const val KEY_TAG_TITLE = "tag_title"
+        private const val KEY_TAG_IDS = "tag_ids"
+        private const val KEY_TAG_TITLES = "tag_titles"
         private const val KEY_ESTIMATE = "default_estimate_minutes"
         private const val KEY_FILTER = "call_filter"
         private const val KEY_DECLINED = "capture_declined"
