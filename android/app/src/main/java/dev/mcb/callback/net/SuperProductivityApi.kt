@@ -33,9 +33,11 @@ data class Tag(val id: String, val title: String)
  */
 class SuperProductivityApi(private val config: ApiConfig) {
 
+    // Generous on purpose: on a weak mobile link a slow-but-working server
+    // would otherwise trip the health check's "unreachable" alert.
     private val client = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(8, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .build()
 
     class ApiException(message: String) : IOException(message)

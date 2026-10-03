@@ -8,9 +8,10 @@ import dev.mcb.callback.net.SuperProductivityApi
 
 /**
  * Pings the configured Local REST API every [INTERVAL_MS] while the monitor
- * is running. [onFailure] fires once on the healthy -> unhealthy transition
- * (not on every failed check, or an outage would spam a notification every
- * minute); [onRecovered] fires once on the way back. A `PeriodicWorkRequest`
+ * is running. [onFailure] fires once after [FAILURES_BEFORE_ALERT] failed
+ * checks in a row — a single slow check on a bad connection isn't an outage —
+ * and not again until it recovers (or an outage would spam a notification
+ * every minute); [onRecovered] fires once on the way back. A `PeriodicWorkRequest`
  * can't do this — WorkManager floors periodic work at 15 minutes — so this
  * runs its own loop on the foreground service's lifetime instead, the same
  * way [dev.mcb.callback.CallDetector] owns its background thread.
@@ -24,7 +25,7 @@ class HealthChecker(
     private val settings = Settings(context)
     private val worker = HandlerThread("callback-healthcheck").apply { start() }
     private val bg = Handler(worker.looper)
-    private var wasHealthy = true
+    private var consecutiveFailures = 0
 
     private val loop = object : Runnable {
         override fun run() {
@@ -48,24 +49,26 @@ class HealthChecker(
         val healthy = result.getOrNull()?.let { it in 200..299 } == true
 
         if (healthy) {
-            if (!wasHealthy) {
+            if (consecutiveFailures >= FAILURES_BEFORE_ALERT) {
                 onLog("healthcheck: recovered")
                 onRecovered()
             }
+            consecutiveFailures = 0
         } else {
+            consecutiveFailures++
             val reason = result.fold(
                 onSuccess = { code -> "HTTP $code" },
                 onFailure = { e -> e.message ?: "unreachable" },
             )
-            if (wasHealthy) {
+            if (consecutiveFailures == FAILURES_BEFORE_ALERT) {
                 onLog("healthcheck: FAILED — $reason")
                 onFailure(reason)
             }
         }
-        wasHealthy = healthy
     }
 
     companion object {
         private const val INTERVAL_MS = 60_000L
+        private const val FAILURES_BEFORE_ALERT = 2
     }
 }
