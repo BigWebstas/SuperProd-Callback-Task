@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.text.method.ScrollingMovementMethod
@@ -24,6 +25,7 @@ import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import dev.mcb.callback.data.CallFilter
@@ -32,6 +34,7 @@ import dev.mcb.callback.data.Settings
 import dev.mcb.callback.net.Project
 import dev.mcb.callback.net.SuperProductivityApi
 import dev.mcb.callback.net.Tag
+import dev.mcb.callback.net.UpdateChecker
 import dev.mcb.callback.service.CallMonitorService
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -106,7 +109,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(statusLabel)
 
         root.addView(heading("Permissions"))
-        root.addView(button("Grant permissions") { requestPermissionsIfNeeded() })
+        root.addView(button("Grant permissions", ICON_LOCK) { requestPermissionsIfNeeded() })
 
         root.addView(heading("Write path — Super Productivity Local REST API"))
         hostField = field(root, "Host[:port], LAN IP[:port], or https://proxy-domain", settings.apiHost)
@@ -142,7 +145,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(tagButton)
         setTagItems(initialTagItems())
 
-        root.addView(button("Save + test connection") { saveAndTest() })
+        root.addView(button("Save + test connection", ICON_SAVE) { saveAndTest() })
 
         root.addView(heading("Which missed calls to capture"))
         filterGroup = RadioGroup(this).apply {
@@ -168,7 +171,7 @@ class MainActivity : AppCompatActivity() {
             isChecked = settings.captureDeclined
         }
         root.addView(declinedCheck)
-        root.addView(button("Save rule") {
+        root.addView(button("Save rule", ICON_SAVE) {
             val checked = (0 until filterGroup.childCount)
                 .map { filterGroup.getChildAt(it) as RadioButton }
                 .firstOrNull { it.isChecked }
@@ -185,18 +188,21 @@ class MainActivity : AppCompatActivity() {
         })
 
         root.addView(heading("Monitor"))
-        root.addView(button("Start monitor") {
+        root.addView(button("Start monitor", ICON_PLAY) {
             CallMonitorService.start(this)
             setStatus(true)
             append("start requested")
         })
-        root.addView(button("Stop monitor") {
+        root.addView(button("Stop monitor", ICON_STOP) {
             CallMonitorService.stop(this)
             setStatus(false)
             append("stop requested")
         })
 
-        val advancedToggle = button("Show advanced") { }
+        root.addView(heading("Updates"))
+        root.addView(button("Check for updates", ICON_UPDATE) { checkForUpdates() })
+
+        val advancedToggle = button("Show advanced", ICON_EXPAND) { }
         root.addView(advancedToggle)
         advancedBox = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -209,16 +215,16 @@ class MainActivity : AppCompatActivity() {
             advancedBox.visibility = if (show) View.VISIBLE else View.GONE
             advancedToggle.text = if (show) "Hide advanced" else "Show advanced"
         }
-        advancedBox.addView(button("Scan now") {
+        advancedBox.addView(button("Scan now", ICON_SEARCH) {
             CallMonitorService.scanNow(this)
             append("scan requested")
         })
-        advancedBox.addView(button("Show recent") { showRecent() })
-        advancedBox.addView(button("Retry now") {
+        advancedBox.addView(button("Show recent", ICON_LIST) { showRecent() })
+        advancedBox.addView(button("Retry now", ICON_REFRESH) {
             withRepo { append("retry pass requested") ; it.runRetryPass() }
         })
-        advancedBox.addView(button("Seed a test call") { withRepo { it.seedFakeCall() } })
-        advancedBox.addView(button("Clear log") { logView.text = "" })
+        advancedBox.addView(button("Seed a test call", ICON_BUG) { withRepo { it.seedFakeCall() } })
+        advancedBox.addView(button("Clear log", ICON_CLEAR) { logView.text = "" })
 
         logView = TextView(this).apply {
             typeface = android.graphics.Typeface.MONOSPACE
@@ -290,6 +296,34 @@ class MainActivity : AppCompatActivity() {
             }.onFailure { e ->
                 append("test connection FAILED: ${e.message}")
             }
+        }
+    }
+
+    /** Manual only — asks GitHub for the latest release and offers to open it if newer. */
+    private fun checkForUpdates() {
+        append("checking for updates…")
+        thread {
+            runCatching { UpdateChecker().latest() }
+                .onSuccess { release ->
+                    val current = versionName()
+                    if (UpdateChecker.isNewer(release.tag, current)) {
+                        append("update available: ${release.tag}")
+                        runOnUiThread {
+                            AlertDialog.Builder(this)
+                                .setTitle("Update available")
+                                .setMessage("${release.tag} is out; you have v$current.")
+                                .setPositiveButton("Open release") { _, _ ->
+                                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.url)))
+                                }
+                                .setNegativeButton("Later", null)
+                                .show()
+                        }
+                    } else {
+                        append("up to date (v$current)")
+                        runOnUiThread { Toast.makeText(this, "You're up to date", Toast.LENGTH_SHORT).show() }
+                    }
+                }
+                .onFailure { e -> append("update check failed: ${e.message}") }
         }
     }
 
@@ -510,8 +544,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun button(label: String, onClick: () -> Unit) = Button(this).apply {
+    private fun button(label: String, icon: Int, onClick: () -> Unit) = Button(this).apply {
         text = label
+        setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0)
+        compoundDrawablePadding = dp(8)
         gravity = Gravity.CENTER
         layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
             topMargin = dp(12)
@@ -522,5 +558,19 @@ class MainActivity : AppCompatActivity() {
     private fun append(line: String) = runOnUiThread {
         logView.append("${clock.format(Date())}  $line\n")
         logScroll.post { logScroll.fullScroll(ScrollView.FOCUS_DOWN) }
+    }
+
+    private companion object {
+        val ICON_LOCK = dev.mcb.callback.R.drawable.ic_lock_open
+        val ICON_SAVE = dev.mcb.callback.R.drawable.ic_save
+        val ICON_PLAY = dev.mcb.callback.R.drawable.ic_play
+        val ICON_STOP = dev.mcb.callback.R.drawable.ic_stop
+        val ICON_EXPAND = dev.mcb.callback.R.drawable.ic_expand_more
+        val ICON_SEARCH = dev.mcb.callback.R.drawable.ic_search
+        val ICON_LIST = dev.mcb.callback.R.drawable.ic_list
+        val ICON_REFRESH = dev.mcb.callback.R.drawable.ic_refresh
+        val ICON_BUG = dev.mcb.callback.R.drawable.ic_bug
+        val ICON_CLEAR = dev.mcb.callback.R.drawable.ic_clear_all
+        val ICON_UPDATE = dev.mcb.callback.R.drawable.ic_system_update
     }
 }
