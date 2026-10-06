@@ -28,6 +28,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import dev.mcb.callback.data.CallFilter
 import dev.mcb.callback.data.QueueRepository
 import dev.mcb.callback.data.Settings
@@ -86,6 +89,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Draw behind the status/nav bars like PebbleRecorder (bars are made transparent in the theme).
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val night = resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !night
+            isAppearanceLightNavigationBars = !night
+        }
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -248,7 +259,15 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, dp(24), 0, 0)
         })
 
-        setContentView(ScrollView(this).apply { addView(root) })
+        setContentView(ScrollView(this).apply {
+            addView(root)
+            // Edge-to-edge draws under the bars; pad the scroll area so content clears them.
+            ViewCompat.setOnApplyWindowInsetsListener(this) { v, insets ->
+                val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+                v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                WindowInsetsCompat.CONSUMED
+            }
+        })
         append("ready")
     }
 
