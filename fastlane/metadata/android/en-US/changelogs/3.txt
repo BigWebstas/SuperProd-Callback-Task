@@ -1,0 +1,6 @@
+Multi-select tags, Material icons, and a manual update check.
+
+- Pick several tags for callback tasks instead of just one.
+- Every button now has a Material icon.
+- New "Check for updates" button looks up the latest GitHub release and links to it. Manual only; the app never checks in the background.
+- The health check waits for several failures in a row before alerting, so a bad connection no longer raises false alarms.
