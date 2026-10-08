@@ -119,8 +119,16 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(statusLabel)
 
-        root.addView(heading("Permissions"))
-        root.addView(button("Grant permissions", ICON_LOCK) { requestPermissionsIfNeeded() })
+        root.addView(button("Start monitor", ICON_PLAY) {
+            CallMonitorService.start(this)
+            setStatus(true)
+            append("start requested")
+        })
+        root.addView(button("Stop monitor", ICON_STOP) {
+            CallMonitorService.stop(this)
+            setStatus(false)
+            append("stop requested")
+        })
 
         root.addView(heading("Write path — Super Productivity Local REST API"))
         hostField = field(root, "Host[:port], LAN IP[:port], or https://proxy-domain", settings.apiHost)
@@ -198,21 +206,6 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        root.addView(heading("Monitor"))
-        root.addView(button("Start monitor", ICON_PLAY) {
-            CallMonitorService.start(this)
-            setStatus(true)
-            append("start requested")
-        })
-        root.addView(button("Stop monitor", ICON_STOP) {
-            CallMonitorService.stop(this)
-            setStatus(false)
-            append("stop requested")
-        })
-
-        root.addView(heading("Updates"))
-        root.addView(button("Check for updates", ICON_UPDATE) { checkForUpdates() })
-
         val advancedToggle = button("Show advanced", ICON_EXPAND) { }
         root.addView(advancedToggle)
         advancedBox = LinearLayout(this).apply {
@@ -226,6 +219,7 @@ class MainActivity : AppCompatActivity() {
             advancedBox.visibility = if (show) View.VISIBLE else View.GONE
             advancedToggle.text = if (show) "Hide advanced" else "Show advanced"
         }
+        advancedBox.addView(button("Grant permissions", ICON_LOCK) { requestPermissionsIfNeeded() })
         advancedBox.addView(button("Scan now", ICON_SEARCH) {
             CallMonitorService.scanNow(this)
             append("scan requested")
@@ -235,6 +229,7 @@ class MainActivity : AppCompatActivity() {
             withRepo { append("retry pass requested") ; it.runRetryPass() }
         })
         advancedBox.addView(button("Seed a test call", ICON_BUG) { withRepo { it.seedFakeCall() } })
+        advancedBox.addView(button("Check for updates", ICON_UPDATE) { checkForUpdates() })
         advancedBox.addView(button("Clear log", ICON_CLEAR) { logView.text = "" })
 
         logView = TextView(this).apply {
@@ -565,6 +560,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun button(label: String, icon: Int, onClick: () -> Unit) = Button(this).apply {
         text = label
+        isAllCaps = false
         setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0)
         compoundDrawablePadding = dp(8)
         gravity = Gravity.CENTER
