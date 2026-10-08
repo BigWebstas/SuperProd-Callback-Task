@@ -11,5 +11,6 @@ Thumbs.db
 
 # Editor/tool-local state, not shared with the team
 .codex/
+.claude/
 CLAUDE.md
 /.idea/
