@@ -17,7 +17,6 @@ import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.RadioButton
@@ -26,11 +25,15 @@ import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.color.DynamicColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.materialswitch.MaterialSwitch
 import dev.mcb.callback.data.CallFilter
 import dev.mcb.callback.data.QueueRepository
 import dev.mcb.callback.data.Settings
@@ -47,9 +50,9 @@ import kotlin.concurrent.thread
 /**
  * Single-screen control panel: permissions, write-path config, the capture
  * rule, start/stop. Built in code, no layout XML. The look follows
- * PebbleRecorder (sibling repo): a plain AppCompat DayNight theme, a centred
- * column, an icon and bold status line up top, a faded version footer. The
- * debug tools and the live log sit behind an "Advanced" toggle.
+ * PebbleRecorder (sibling repo): a Material 3 DayNight theme with dynamic colors,
+ * a centred column, an icon and bold status line up top, a faded version footer.
+ * The debug tools and the live log sit behind an "Advanced" toggle.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -60,9 +63,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tokenField: EditText
     private lateinit var estimateField: EditText
     private lateinit var projectSpinner: Spinner
-    private lateinit var tagButton: Button
+    private lateinit var tagButton: MaterialButton
     private lateinit var filterGroup: RadioGroup
-    private lateinit var declinedCheck: CheckBox
+    private lateinit var declinedCheck: MaterialSwitch
     private lateinit var statusLabel: TextView
     private lateinit var logView: TextView
     private lateinit var logScroll: ScrollView
@@ -89,6 +92,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        DynamicColors.applyToActivityIfAvailable(this)
         // Draw behind the status/nav bars like PebbleRecorder (bars are made transparent in the theme).
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val night = resources.configuration.uiMode and
@@ -119,8 +124,16 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(statusLabel)
 
-        root.addView(heading("Permissions"))
-        root.addView(button("Grant permissions", ICON_LOCK) { requestPermissionsIfNeeded() })
+        root.addView(button("Start monitor", ICON_PLAY) {
+            CallMonitorService.start(this)
+            setStatus(true)
+            append("start requested")
+        })
+        root.addView(button("Stop monitor", ICON_STOP) {
+            CallMonitorService.stop(this)
+            setStatus(false)
+            append("stop requested")
+        })
 
         root.addView(heading("Write path — Super Productivity Local REST API"))
         hostField = field(root, "Host[:port], LAN IP[:port], or https://proxy-domain", settings.apiHost)
@@ -148,9 +161,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         root.addView(label("Tags (applied to every callback task)"))
-        tagButton = Button(this).apply {
+        tagButton = MaterialButton(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(320), WRAP_CONTENT)
-            isAllCaps = false
             setOnClickListener { showTagPickerDialog() }
         }
         root.addView(tagButton)
@@ -161,6 +173,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(heading("Which missed calls to capture"))
         filterGroup = RadioGroup(this).apply {
             orientation = RadioGroup.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT)
             listOf(
                 CallFilter.ALL to "All missed calls",
                 CallFilter.KNOWN_ONLY to "Known contacts only",
@@ -177,9 +190,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
         root.addView(filterGroup)
-        declinedCheck = CheckBox(this).apply {
+        declinedCheck = MaterialSwitch(this).apply {
             text = "Also capture declined calls (title prefixed \"Declined, Call back\")"
             isChecked = settings.captureDeclined
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+                topMargin = dp(12)
+            }
         }
         root.addView(declinedCheck)
         root.addView(button("Save rule", ICON_SAVE) {
@@ -198,21 +214,6 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        root.addView(heading("Monitor"))
-        root.addView(button("Start monitor", ICON_PLAY) {
-            CallMonitorService.start(this)
-            setStatus(true)
-            append("start requested")
-        })
-        root.addView(button("Stop monitor", ICON_STOP) {
-            CallMonitorService.stop(this)
-            setStatus(false)
-            append("stop requested")
-        })
-
-        root.addView(heading("Updates"))
-        root.addView(button("Check for updates", ICON_UPDATE) { checkForUpdates() })
-
         val advancedToggle = button("Show advanced", ICON_EXPAND) { }
         root.addView(advancedToggle)
         advancedBox = LinearLayout(this).apply {
@@ -226,6 +227,7 @@ class MainActivity : AppCompatActivity() {
             advancedBox.visibility = if (show) View.VISIBLE else View.GONE
             advancedToggle.text = if (show) "Hide advanced" else "Show advanced"
         }
+        advancedBox.addView(button("Grant permissions", ICON_LOCK) { requestPermissionsIfNeeded() })
         advancedBox.addView(button("Scan now", ICON_SEARCH) {
             CallMonitorService.scanNow(this)
             append("scan requested")
@@ -235,6 +237,7 @@ class MainActivity : AppCompatActivity() {
             withRepo { append("retry pass requested") ; it.runRetryPass() }
         })
         advancedBox.addView(button("Seed a test call", ICON_BUG) { withRepo { it.seedFakeCall() } })
+        advancedBox.addView(button("Check for updates", ICON_UPDATE) { checkForUpdates() })
         advancedBox.addView(button("Clear log", ICON_CLEAR) { logView.text = "" })
 
         logView = TextView(this).apply {
@@ -328,7 +331,7 @@ class MainActivity : AppCompatActivity() {
                     if (UpdateChecker.isNewer(release.tag, current)) {
                         append("update available: ${release.tag}")
                         runOnUiThread {
-                            AlertDialog.Builder(this)
+                            MaterialAlertDialogBuilder(this)
                                 .setTitle("Update available")
                                 .setMessage("${release.tag} is out; you have v$current.")
                                 .setPositiveButton("Open release") { _, _ ->
@@ -430,7 +433,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showTagPickerDialog() {
         if (availableTags.isEmpty()) {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("Tags")
                 .setMessage("No tags loaded yet. Make sure Super Productivity is running and tap 'Save + test connection' to load tags.")
                 .setPositiveButton("OK", null)
@@ -444,7 +447,7 @@ class MainActivity : AppCompatActivity() {
             availableTags[i].id in currentIds
         }
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Select tags")
             .setMultiChoiceItems(tagLabels, checkedItems) { _, which, isChecked ->
                 checkedItems[which] = isChecked
@@ -563,10 +566,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun button(label: String, icon: Int, onClick: () -> Unit) = Button(this).apply {
+    private fun button(label: String, icon: Int, onClick: () -> Unit) = MaterialButton(this).apply {
         text = label
-        setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0)
-        compoundDrawablePadding = dp(8)
+        if (icon != 0) {
+            setIconResource(icon)
+            iconPadding = dp(8)
+            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+        }
         gravity = Gravity.CENTER
         layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
             topMargin = dp(12)
