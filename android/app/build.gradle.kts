@@ -12,13 +12,29 @@ android {
         applicationId = "dev.mcb.callback"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.3.1"
+        versionCode = 5
+        versionName = "0.3.2"
+    }
+
+    // Release signing comes from Gradle properties (e.g. ~/.gradle/gradle.properties),
+    // never from the repo. Without them the release APK is built unsigned, which is
+    // what F-Droid's own build expects.
+    val releaseStoreFile = providers.gradleProperty("RELEASE_STORE_FILE").orNull
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = providers.gradleProperty("RELEASE_STORE_PASSWORD").get()
+                keyAlias = providers.gradleProperty("RELEASE_KEY_ALIAS").get()
+                keyPassword = providers.gradleProperty("RELEASE_KEY_PASSWORD").get()
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 

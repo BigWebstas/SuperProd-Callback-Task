@@ -16,3 +16,5 @@ CLAUDE.md
 /.idea/
 GEMINI.md
 .idea/
+*.jks
+*.keystore

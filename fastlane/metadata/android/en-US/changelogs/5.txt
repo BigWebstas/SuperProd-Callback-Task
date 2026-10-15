@@ -1,0 +1,1 @@
+Release APKs are now signed with a dedicated release key instead of the Android debug key. No functional changes.
